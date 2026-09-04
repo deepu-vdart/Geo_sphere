@@ -1,0 +1,74 @@
+services:
+  # ─── PostgreSQL + PostGIS ────────────────────────────────────────────────────
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: geo3d-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-geo3d}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-geo3dpass}
+      POSTGRES_DB: ${POSTGRES_DB:-geo3d}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-geo3d} -d ${POSTGRES_DB:-geo3d}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - geo3d-network
+
+  # ─── Backend (FastAPI) ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: geo3d-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-geo3d}:${POSTGRES_PASSWORD:-geo3dpass}@postgres:5432/${POSTGRES_DB:-geo3d}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-false}
+      DATA_DIR: /data
+      CORS_ORIGINS: '["http://localhost:5173","http://localhost:3000","http://frontend:5173"]'
+    volumes:
+      - ./backend:/app
+      - geo3d_data:/data
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - geo3d-network
+
+  # ─── Frontend (Vite Dev Server) ───────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: geo3d-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      VITE_CESIUM_TOKEN: ${VITE_CESIUM_TOKEN:-}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      - backend
+    networks:
+      - geo3d-network
+
+volumes:
+  postgres_data:
+  geo3d_data:
+
+networks:
+  geo3d-network:
+    driver: bridge

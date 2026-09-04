@@ -1,0 +1,15 @@
+[
+  {
+    "type": "readers.las",
+    "filename": "${INPUT_FILE}"
+  },
+  {
+    "type": "filters.sample",
+    "cell": 0.5
+  },
+  {
+    "type": "writers.pgpointcloud",
+    "connection": "${DB_CONN}",
+    "table": "tiles_3d"
+  }
+]

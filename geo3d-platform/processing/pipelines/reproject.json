@@ -1,0 +1,16 @@
+[
+  {
+    "type": "readers.las",
+    "filename": "${INPUT_FILE}"
+  },
+  {
+    "type": "filters.reprojection",
+    "in_srs": "${IN_SRS}",
+    "out_srs": "${OUT_SRS}"
+  },
+  {
+    "type": "writers.las",
+    "filename": "${OUTPUT_FILE}",
+    "compression": "laszip"
+  }
+]

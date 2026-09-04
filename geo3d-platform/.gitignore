@@ -1,0 +1,70 @@
+# Git Ignore — Geo3D Platform
+
+# ─── Environment ──────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ─── Python ───────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.coveragerc
+
+# ─── Node / Frontend ──────────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+*.local
+
+# ─── Data (large files) ───────────────────────────────────────────────
+data/raw/
+data/processed/
+data/terrain/
+data/tiles/
+data/meshes/
+data/pointclouds/
+data/textures/
+# Keep samples directory
+!data/samples/
+!data/samples/**
+
+# ─── Docker ───────────────────────────────────────────────────────────
+# (Docker Compose volumes managed externally)
+
+# ─── IDE ──────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─── Logs ─────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Jupyter ──────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ─── Geospatial temp ──────────────────────────────────────────────────
+*.tmp
+*.temp
+scratch/

@@ -1,0 +1,10 @@
+[
+  {
+    "type": "readers.las",
+    "filename": "${INPUT_FILE}"
+  },
+  {
+    "type": "filters.stats",
+    "dimensions": "X,Y,Z,Intensity,Classification,ReturnNumber"
+  }
+]
