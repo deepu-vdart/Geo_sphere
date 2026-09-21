@@ -58,6 +58,9 @@ export default function CesiumViewer() {
   const aiMarkerPinEntityRef = useRef<Cesium.Entity | null>(null)
   const gl3dCameraEntitiesRef = useRef<Cesium.Entity[]>([])
   const gl3dModelEntityRef = useRef<Cesium.Entity | null>(null)
+  const odmModelEntityRef = useRef<Cesium.Entity | null>(null)
+  const odmOrthophotoLayerRef = useRef<Cesium.ImageryLayer | null>(null)
+  const temporalPointsCollectionRef = useRef<Cesium.PointPrimitiveCollection | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -310,6 +313,11 @@ export default function CesiumViewer() {
       viewer.scene.primitives.add(pointCollection)
       pointPrimitiveCollectionRef.current = pointCollection
 
+      // Temporal Difference Point Collection
+      const temporalCollection = new Cesium.PointPrimitiveCollection()
+      viewer.scene.primitives.add(temporalCollection)
+      temporalPointsCollectionRef.current = temporalCollection
+
       viewerRef.current = viewer
       setLoading(false)
     } catch (err) {
@@ -421,6 +429,54 @@ export default function CesiumViewer() {
     }
   }, [showContours, contoursGeoJson])
 
+  // ── Multi-Temporal Difference Point Cloud ──────────────────────────────────
+  const temporalDiffPoints = useViewerStore((s) => s.temporalDiffPoints)
+
+  useEffect(() => {
+    if (!viewerRef.current || !temporalPointsCollectionRef.current) return
+    const collection = temporalPointsCollectionRef.current
+    collection.removeAll()
+
+    if (!temporalDiffPoints || temporalDiffPoints.length === 0) return
+
+    for (const pt of temporalDiffPoints) {
+      const color = Cesium.Color.fromCssColorString(pt.color || '#38bdf8')
+      const primitive = collection.add({
+        position: Cesium.Cartesian3.fromDegrees(pt.lon, pt.lat, pt.alt),
+        color: color,
+        pixelSize: pt.type === 'new_structure' || pt.type === 'demolished' ? 6 : 4,
+        disableDepthTestDistance: 50.0,
+      })
+      ;(primitive as any).datasetInfo = {
+        object: 'Temporal Change Point',
+        detail: `Type: ${pt.type} | ΔZ: ${pt.delta_z > 0 ? '+' : ''}${pt.delta_z} m | Elev: ${pt.alt} m`,
+        lon: pt.lon,
+        lat: pt.lat,
+        alt: pt.alt,
+        delta_z: pt.delta_z,
+        change_type: pt.type,
+      }
+    }
+
+    // Fly to temporal point cloud extent
+    if (temporalDiffPoints.length > 0) {
+      const mid = temporalDiffPoints[Math.floor(temporalDiffPoints.length / 2)]
+      viewerRef.current.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(
+          mid.lon - 0.002,
+          mid.lat - 0.003,
+          mid.alt + 350
+        ),
+        orientation: {
+          heading: Cesium.Math.toRadians(25),
+          pitch: Cesium.Math.toRadians(-35),
+          roll: 0,
+        },
+        duration: 1.8,
+      })
+    }
+  }, [temporalDiffPoints])
+
   // ── Load & Render Point Cloud Dataset ──────────────────────────────────────
   useEffect(() => {
     if (!viewerRef.current || !pointPrimitiveCollectionRef.current) return
@@ -437,9 +493,17 @@ export default function CesiumViewer() {
       viewer.entities.remove(gl3dModelEntityRef.current)
       gl3dModelEntityRef.current = null
     }
+    if (odmModelEntityRef.current) {
+      viewer.entities.remove(odmModelEntityRef.current)
+      odmModelEntityRef.current = null
+    }
+    if (odmOrthophotoLayerRef.current) {
+      viewer.imageryLayers.remove(odmOrthophotoLayerRef.current)
+      odmOrthophotoLayerRef.current = null
+    }
     setTileStreamingProgress(0)
 
-    const isPointCloudType = activeDataset?.dataset_type === 'point_cloud' || activeDataset?.dataset_type === 'gl3d_scene'
+    const isPointCloudType = activeDataset?.dataset_type === 'point_cloud' || activeDataset?.dataset_type === 'gl3d_scene' || activeDataset?.dataset_type === 'photogrammetry'
     if (!activeDataset || !isPointCloudType) {
       loadedPointsRef.current = []
       return
@@ -494,6 +558,48 @@ export default function CesiumViewer() {
         duration: 2.0,
       })
       setTileStreamingProgress(100)
+    }
+
+    // ── ODM Photogrammetry Mesh Loading ────────────────────────────────────
+    if (activeDataset.dataset_type === 'photogrammetry') {
+      const meta = (activeDataset.metadata_json as any) || {}
+      const odmTaskId = meta.odm_task_id
+      const hasMesh = meta.available_assets?.includes('textured_mesh')
+
+      if (odmTaskId && hasMesh) {
+        const anchor = meta.anchor || { lon: 8.5417, lat: 47.3769, alt: 450.0 }
+        const modelUrl = `/api/odm/tasks/${odmTaskId}/assets/textured_mesh`
+        const position = Cesium.Cartesian3.fromDegrees(anchor.lon, anchor.lat, anchor.alt)
+        const hpr = new Cesium.HeadingPitchRoll(0, 0, 0)
+
+        const modelEntity = viewer.entities.add({
+          name: `${activeDataset.name} (3D Textured Mesh)`,
+          position: position,
+          orientation: Cesium.Transforms.headingPitchRollQuaternion(position, hpr),
+          model: {
+            uri: modelUrl,
+            minimumPixelSize: 64,
+            maximumScale: 200000,
+            scale: 1.0,
+            shadows: Cesium.ShadowMode.ENABLED,
+          },
+        })
+        odmModelEntityRef.current = modelEntity
+
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(
+            anchor.lon + 0.0004,
+            anchor.lat - 0.0005,
+            anchor.alt + 120.0
+          ),
+          orientation: {
+            heading: Cesium.Math.toRadians(320),
+            pitch: Cesium.Math.toRadians(-35),
+            roll: 0,
+          },
+          duration: 2.0,
+        })
+      }
     }
 
     // ── Strategy 1: Try native Cesium3DTileset (LOD streaming) ──────────────

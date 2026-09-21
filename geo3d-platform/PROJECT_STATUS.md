@@ -24,9 +24,15 @@
 | **DALES-2 Semantic Classifier** | ✅ COMPLETE | 15-class semantic point classifier with feature heuristics & ASPRS priors |
 | **Documentation Suite** | ✅ COMPLETE | `README.md`, `ARCHITECTURE.md`, `DATA_PIPELINE.md`, `API.md`, `PROJECT_STATUS.md` |
 | **Automated Testing Suite** | ✅ COMPLETE | 20 unit & integration tests passing (`pytest tests/ -v`), TypeScript build 0 errors |
+| **WebODM API Client** | ✅ COMPLETE | Full async REST client with authentication, task management, result download, and mock mode |
+| **Photogrammetry Pipeline** | ✅ COMPLETE | End-to-end: image upload → ODM processing → result download → Geo3D catalog import |
+| **ODM REST API (8 endpoints)** | ✅ COMPLETE | Health, nodes, task CRUD, results, import, delete under `/api/odm/` |
+| **Photogrammetry UI Panel** | ✅ COMPLETE | Drag-and-drop upload, processing options, live task list with progress bars |
+| **Docker WebODM Integration** | ✅ COMPLETE | Optional `--profile odm` for WebODM + NodeODM containers |
+| **Multi-Temporal Change Detection** | ✅ COMPLETE | Volumetric Cut/Fill estimation, DEM of Difference (DoD), surface dynamics |
+| **3D Difference Visualizer** | ✅ COMPLETE | Colored differential point clouds (cut, fill, new structures, demolished) in CesiumJS |
+| **Temporal UI Panel** | ✅ COMPLETE | Multi-survey selector, parameter controls, demo shift mode, surface statistics |
 
-
----
 
 ## Stack Health & Verification
 
@@ -34,3 +40,4 @@
 - **Frontend**: React 18 + TypeScript + Vite running on `:5173`.
 - **3D Engine**: CesiumJS with high-res World Imagery and terrain depth testing.
 - **Geospatial Pipeline**: PDAL, GDAL, Pyproj, Shapely, Laspy, NumPy.
+- **Photogrammetry**: WebODM + NodeODM (optional Docker profile `odm`), async REST API client with mock fallback.

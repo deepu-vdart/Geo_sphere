@@ -2,6 +2,71 @@
 
 All notable changes to this project are documented here.
 
+## [0.5.0] — 2026-09-21 — Phase 8 Multi-Temporal Change Detection & 3D Difference Visualizer
+
+### Added
+- **Multi-Temporal Change Detection Engine** (`app.processing.temporal.change_detection`):
+  - Digital Elevation Model of Difference (DoD) algorithm across multi-epoch surveys.
+  - Volumetric Cut/Fill analysis computing exact excavation ($m^3$) and deposition ($m^3$) volumes.
+  - Structural feature detection isolating newly erected structures and demolished buildings.
+  - Dynamic simulation mode synthesizing realistic spatial modifications when single datasets are evaluated.
+- **Multi-Temporal REST API** (`/api/temporal/`):
+  - `POST /api/temporal/compare` — Comparative DoD execution with optional simulated temporal shift.
+  - `GET /api/temporal/demo` — Instant comparison demo across project datasets.
+  - `GET /api/temporal/compare/{id}` — Retrieve cached comparison metrics and point clouds.
+  - Native support for LAS, LAZ, and PLY point cloud formats via `_extract_dataset_points`.
+- **Temporal UI Panel** (`TemporalChangePanel.tsx`):
+  - Baseline (T1) vs Comparison (T2) epoch selectors with grid resolution and height threshold controls.
+  - Volumetric KPI cards: Cut Volume ($m^3$), Fill Volume ($m^3$), Net Volume ($m^3$), and Modified Footprint ($m^2$).
+  - Surface dynamics breakdown: Cut %, Fill %, Stable %, New Structures, and Demolished features.
+  - 3D Differential point cloud filter toggles.
+- **CesiumJS 3D Difference Visualization** (`CesiumViewer.tsx`):
+  - 3D point cloud rendering with dynamic semantic color-coding:
+    - 🔴 Cut / Excavation (Red)
+    - 🔵 Fill / Deposition (Sky Blue)
+    - 🟣 New Structures (Purple)
+    - 🟠 Demolished Structures (Orange)
+    - 🟢 Stable Terrain (Green)
+  - Interactive point inspection showing exact $\Delta Z$, elevation, and classification.
+- **Automated Test Suite** (`backend/tests/test_temporal.py`):
+  - 4 new unit tests validating cut/fill calculus, thresholding, and simulation mode.
+
+## [0.4.0] — 2026-09-21 — Phase 4 Photogrammetry / WebODM Integration
+
+
+### Added
+- **WebODM REST API Client** (`app.services.odm_service`):
+  - Full async client for WebODM authentication, project/task management, and result download.
+  - Mock/demo mode when WebODM is not configured — all endpoints return simulated responses.
+  - Streaming result download for large assets (orthophoto, DSM, DTM, point cloud, mesh).
+- **Photogrammetry Processing Pipeline** (`app.processing.odm_proc.odm_processor`):
+  - End-to-end pipeline: image upload → ODM project creation → processing → result download.
+  - Auto-import of ODM outputs (orthophoto, DSM, DTM, dense point cloud, textured mesh) into Geo3D catalog.
+  - Background task execution with real-time progress tracking (QUEUED → RUNNING → COMPLETED).
+- **8 New REST API Endpoints** (`/api/odm/`):
+  - `GET /api/odm/health` — WebODM connectivity & node status.
+  - `GET /api/odm/nodes` — List processing nodes.
+  - `POST /api/odm/projects/{id}/tasks` — Upload images & start photogrammetry.
+  - `GET /api/odm/tasks/{id}` — Task status & progress polling.
+  - `GET /api/odm/tasks` — List all tasks with filters.
+  - `GET /api/odm/tasks/{id}/results` — Available result assets.
+  - `POST /api/odm/tasks/{id}/import` — Import results into dataset catalog.
+  - `DELETE /api/odm/tasks/{id}` — Cancel & delete tasks.
+- **Photogrammetry UI Panel** (`ODMPanel.tsx`):
+  - Drag-and-drop drone image upload zone with thumbnail preview.
+  - Processing options: quality preset, DSM/DTM toggles.
+  - Live task list with status badges, progress bars, and import/delete actions.
+  - WebODM connection indicator with node count.
+- **Docker Compose WebODM** (optional profile):
+  - `docker-compose --profile odm up` starts WebODM + NodeODM alongside the Geo3D stack.
+  - Separate volumes for ODM media and processing data.
+- **Model & Schema Extensions**:
+  - `ProcessingJob.odm_task_id` and `odm_project_id` columns for WebODM task tracking.
+  - New Pydantic schemas: `ODMHealthResponse`, `ODMTaskCreate`, `ODMTaskResponse`, `ODMResultsResponse`, `ODMImportResponse`.
+- **Config Updates**:
+  - `ODM_DIR`, `ODM_UPLOADS_DIR`, `ODM_RESULTS_DIR` storage directories.
+  - `ODM_MAX_IMAGES` setting (default: 500).
+
 ## [0.3.0] — 2026-08-27 — Phase 3 Spatial Analysis & 3D Interactive Measurements
 
 ### Added

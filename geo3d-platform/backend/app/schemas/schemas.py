@@ -102,6 +102,9 @@ class JobResponse(BaseModel):
     parameters: Optional[dict]
     output_assets: Optional[list]
     error_message: Optional[str]
+    log_output: Optional[str] = None
+    odm_task_id: Optional[str] = None
+    odm_project_id: Optional[int] = None
     started_at: Optional[datetime]
     completed_at: Optional[datetime]
     duration_seconds: Optional[float]
@@ -141,3 +144,51 @@ class ErrorResponse(BaseModel):
     error: str
     detail: Optional[str] = None
     code: Optional[str] = None
+
+
+# ─── ODM / Photogrammetry Schemas ────────────────────────────────────────
+
+class ODMHealthResponse(BaseModel):
+    connected: bool
+    mock_mode: bool
+    message: str
+    node_count: int
+    nodes: Optional[list] = None
+    processing_options: Optional[list] = None
+
+
+class ODMTaskCreate(BaseModel):
+    """Request to create a photogrammetry task."""
+    task_name: str = "Photogrammetry Task"
+    options: Optional[dict[str, Any]] = None  # e.g. {"feature-quality": "high", "dsm": True}
+
+
+class ODMTaskResponse(BaseModel):
+    """Status response for an ODM processing task."""
+    task_id: str
+    odm_project_id: Optional[int] = None
+    job_id: Optional[str] = None
+    status: str  # QUEUED | RUNNING | COMPLETED | FAILED | CANCELLED
+    progress: int = 0
+    image_count: int = 0
+    task_name: str = ""
+    processing_time: Optional[float] = None
+    available_assets: Optional[list[str]] = None
+    error_message: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+class ODMResultsResponse(BaseModel):
+    """List of available result assets from a completed task."""
+    task_id: str
+    status: str
+    results: list[dict[str, Any]]
+
+
+class ODMImportResponse(BaseModel):
+    """Result of importing ODM outputs into the Geo3D catalog."""
+    status: str
+    task_id: str
+    dataset_id: Optional[str] = None
+    imported_assets: list[str]
+    message: str

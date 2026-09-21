@@ -24,6 +24,10 @@ class ProcessingJob(Base):
     #        generate_mesh | tile | analyze | ai_classify | odm_process
     job_type: Mapped[str] = mapped_column(String(64), nullable=False)
 
+    # WebODM / ODM tracking
+    odm_task_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    odm_project_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     # Status: QUEUED | RUNNING | COMPLETED | FAILED | CANCELLED
     status: Mapped[str] = mapped_column(String(32), default="QUEUED")
 

@@ -76,3 +76,29 @@ The Geo3D REST API is built with FastAPI and runs at `http://localhost:8000/api`
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/ai/datasets/{id}/summary` | Generate structured AI terrain intelligence and site suitability report |
+
+---
+
+## 8. Photogrammetry / WebODM (MVP 4)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/odm/health` | WebODM connectivity check and processing node status |
+| `GET` | `/api/odm/nodes` | List available ODM processing nodes |
+| `POST` | `/api/odm/projects/{id}/tasks` | Upload drone images and create a photogrammetry task |
+| `GET` | `/api/odm/tasks/{id}` | Get task status, progress, and details |
+| `GET` | `/api/odm/tasks` | List all ODM tasks (optional `project_id` and `status` filters) |
+| `GET` | `/api/odm/tasks/{id}/results` | List available result assets from a completed task |
+| `POST` | `/api/odm/tasks/{id}/import` | Import ODM results into the Geo3D dataset catalog |
+| `DELETE` | `/api/odm/tasks/{id}` | Cancel and delete a task |
+
+---
+
+## 9. Multi-Temporal Change Detection (MVP 8)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/temporal/compare` | Compute multi-temporal elevation difference (DoD), volumetric cut/fill, and 3D differential point cloud |
+| `GET` | `/api/temporal/demo` | Generate an instant comparative demo with synthetic excavation, fill, and new structures |
+| `GET` | `/api/temporal/compare/{id}` | Retrieve cached temporal comparison result by ID |
+

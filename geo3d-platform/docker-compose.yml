@@ -65,9 +65,43 @@ services:
     networks:
       - geo3d-network
 
+  # ─── WebODM (Photogrammetry Engine) — start with: docker-compose --profile odm up
+  webapp:
+    image: opendronemap/webodm_webapp
+    container_name: geo3d-webodm
+    profiles: ["odm"]
+    restart: unless-stopped
+    environment:
+      WO_PORT: "8000"
+      WO_HOST: "0.0.0.0"
+      WO_DEFAULT_USERNAME: ${WEBODM_USERNAME:-admin}
+      WO_DEFAULT_PASSWORD: ${WEBODM_PASSWORD:-admin}
+    ports:
+      - "${WEBODM_PORT:-8080}:8000"
+    volumes:
+      - odm_media:/webodm/app/media
+    depends_on:
+      - nodeodm
+    networks:
+      - geo3d-network
+
+  nodeodm:
+    image: opendronemap/nodeodm
+    container_name: geo3d-nodeodm
+    profiles: ["odm"]
+    restart: unless-stopped
+    ports:
+      - "${NODEODM_PORT:-3000}:3000"
+    volumes:
+      - odm_data:/var/www/data
+    networks:
+      - geo3d-network
+
 volumes:
   postgres_data:
   geo3d_data:
+  odm_media:
+  odm_data:
 
 networks:
   geo3d-network:

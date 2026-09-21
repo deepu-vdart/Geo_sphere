@@ -73,16 +73,24 @@ app/
 ├── models/            SQLAlchemy ORM
 │   ├── project.py     Project + PostGIS geometry
 │   ├── dataset.py     Dataset + metadata
-│   ├── processing_job.py  Job tracking
+│   ├── processing_job.py  Job tracking + ODM task IDs
 │   └── asset.py       Processed 3D outputs
-├── schemas/schemas.py  Pydantic request/response types
+├── schemas/schemas.py  Pydantic request/response types + ODM schemas
 ├── api/routes/         REST endpoints
 │   ├── health.py      GET /api/health
 │   ├── projects.py    CRUD /api/projects
 │   ├── datasets.py    Upload + list /api/datasets
-│   └── jobs.py        Job status /api/jobs
+│   ├── jobs.py        Job status /api/jobs
+│   └── odm.py         Photogrammetry / WebODM (8 endpoints)
+├── processing/
+│   ├── pdal_proc/     LiDAR LAS/LAZ processing
+│   ├── gdal_proc/     Raster GeoTIFF/DEM processing
+│   ├── odm_proc/      Photogrammetry pipeline (WebODM)
+│   │   └── odm_processor.py  End-to-end ODM task orchestrator
+│   └── tiling/        OGC 3D Tiles generation
 └── services/
-    └── dataset_service.py  Type inference, validation, processing
+    ├── dataset_service.py  Type inference, validation, processing
+    └── odm_service.py      WebODM REST API client + mock mode
 ```
 
 ## Database Schema

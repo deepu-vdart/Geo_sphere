@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { api, type Project, type Dataset, type ProcessingJob } from '../api/client'
+import { api, type Project, type Dataset, type ProcessingJob, type ODMTaskResponse, type ODMHealthResponse } from '../api/client'
 
 // ─── App Store ────────────────────────────────────────────────────────────────
 
@@ -283,6 +283,19 @@ interface ViewerState {
   showDroneCameras: boolean
   setShowDroneCameras: (show: boolean) => void
   toggleDroneCameras: () => void
+
+  // ODM / Photogrammetry (MVP 4)
+  odmPanelOpen: boolean
+  setOdmPanelOpen: (open: boolean) => void
+  odmHealth: { connected: boolean; mock_mode: boolean; node_count: number } | null
+  setOdmHealth: (health: { connected: boolean; mock_mode: boolean; node_count: number } | null) => void
+  odmTasks: ODMTaskResponse[]
+  setOdmTasks: (tasks: ODMTaskResponse[]) => void
+  odmUploadProgress: number
+  setOdmUploadProgress: (pct: number) => void
+  loadOdmHealth: () => Promise<void>
+  loadOdmTasks: (projectId?: string) => Promise<void>
+  refreshOdmTask: (taskId: string) => Promise<void>
 }
 
 export const useViewerStore = create<ViewerState>((set) => ({
@@ -414,4 +427,52 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setTemporalDiffResult: (res) => set({ temporalDiffResult: res }),
   temporalDiffPoints: null,
   setTemporalDiffPoints: (pts) => set({ temporalDiffPoints: pts }),
+
+  // ODM / Photogrammetry
+  odmPanelOpen: false,
+  setOdmPanelOpen: (open) => set({ odmPanelOpen: open }),
+  odmHealth: null,
+  setOdmHealth: (health) => set({ odmHealth: health }),
+  odmTasks: [],
+  setOdmTasks: (tasks) => set({ odmTasks: tasks }),
+  odmUploadProgress: 0,
+  setOdmUploadProgress: (pct) => set({ odmUploadProgress: pct }),
+
+  loadOdmHealth: async () => {
+    try {
+      const res = await api.odmHealth()
+      set({
+        odmHealth: {
+          connected: res.data.connected,
+          mock_mode: res.data.mock_mode,
+          node_count: res.data.node_count,
+        },
+      })
+    } catch {
+      set({ odmHealth: { connected: false, mock_mode: true, node_count: 0 } })
+    }
+  },
+
+  loadOdmTasks: async (projectId?: string) => {
+    try {
+      const res = await api.odmListTasks(projectId)
+      set({ odmTasks: res.data })
+    } catch {
+      set({ odmTasks: [] })
+    }
+  },
+
+  refreshOdmTask: async (taskId: string) => {
+    try {
+      const res = await api.odmGetTask(taskId)
+      const updated = res.data
+      set((state) => ({
+        odmTasks: state.odmTasks.map((t) =>
+          (t.task_id === taskId || t.job_id === taskId) ? updated : t
+        ),
+      }))
+    } catch (e) {
+      console.error('Failed to refresh ODM task:', e)
+    }
+  },
 }))

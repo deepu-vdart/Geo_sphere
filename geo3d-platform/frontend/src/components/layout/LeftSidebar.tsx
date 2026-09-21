@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useAppStore, useViewerStore } from '../../stores'
 import { api } from '../../api/client'
 import ClassificationPanel from '../panels/ClassificationPanel'
+import ODMPanel from '../panels/ODMPanel'
+import TemporalChangePanel from '../panels/TemporalChangePanel'
 import GL3DPanel from '../sidebar/GL3DPanel'
 
 function AITerrainPanel({ datasetId }: { datasetId: string }) {
@@ -89,7 +91,9 @@ export default function LeftSidebar() {
     analysis: true,
     ai: false,
     gl3d: false,
+    odm: false,
     classification: false,
+    temporal: false,
   })
 
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -478,6 +482,19 @@ export default function LeftSidebar() {
             )}
           </div>
 
+          {/* ── ODM Photogrammetry ────────────────────────────────── */}
+          <div className="sidebar__section">
+            <div className="sidebar__section-header" onClick={() => toggleSection('odm')}>
+              <span className="sidebar__section-title">🛩️ Photogrammetry</span>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: 10 }}>
+                {openSections.odm ? '▲' : '▼'}
+              </span>
+            </div>
+            {openSections.odm && (
+              <ODMPanel />
+            )}
+          </div>
+
           {/* ── DALES-2 Classification ──────────────────────────── */}
           {activeDataset?.dataset_type === 'point_cloud' && (
             <div className="sidebar__section">
@@ -492,6 +509,19 @@ export default function LeftSidebar() {
               )}
             </div>
           )}
+
+          {/* ── Multi-Temporal Change Detection ───────────────────── */}
+          <div className="sidebar__section">
+            <div className="sidebar__section-header" onClick={() => toggleSection('temporal')}>
+              <span className="sidebar__section-title">⏳ Temporal Change</span>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: 10 }}>
+                {openSections.temporal ? '▲' : '▼'}
+              </span>
+            </div>
+            {openSections.temporal && (
+              <TemporalChangePanel />
+            )}
+          </div>
 
         </div>
       </aside>

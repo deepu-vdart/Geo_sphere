@@ -13,7 +13,7 @@ import os
 
 from app.config import get_settings
 from app.database import init_db
-from app.api.routes import health, projects, datasets, jobs, analysis, aoi, terrain, ai, providers, classification, temporal, gl3d
+from app.api.routes import health, projects, datasets, jobs, analysis, aoi, terrain, ai, providers, classification, temporal, gl3d, odm
 
 # ─── Logging ────────────────────────────────────────────────────────────────
 
@@ -32,7 +32,8 @@ async def lifespan(app: FastAPI):
 
     # Ensure data directories exist
     for d in [settings.DATA_DIR, settings.RAW_DIR, settings.PROCESSED_DIR,
-              settings.TERRAIN_DIR, settings.TILES_DIR]:
+              settings.TERRAIN_DIR, settings.TILES_DIR,
+              settings.ODM_DIR, settings.ODM_UPLOADS_DIR, settings.ODM_RESULTS_DIR]:
         os.makedirs(d, exist_ok=True)
 
     # Initialize database tables
@@ -89,6 +90,7 @@ app.include_router(providers.router, prefix=settings.API_PREFIX)
 app.include_router(classification.router, prefix=settings.API_PREFIX)
 app.include_router(temporal.router, prefix=settings.API_PREFIX)
 app.include_router(gl3d.router, prefix=settings.API_PREFIX)
+app.include_router(odm.router, prefix=settings.API_PREFIX)
 
 
 # ─── Root ────────────────────────────────────────────────────────────────────

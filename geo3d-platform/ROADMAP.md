@@ -1,6 +1,6 @@
 # Geo3D Platform — Roadmap
 
-## MVP 1: Interactive 3D Viewer ✅ CURRENT
+## MVP 1: Interactive 3D Viewer ✅ DONE
 **Goal:** Working CesiumJS globe with project/dataset management API
 
 - CesiumJS globe in browser
@@ -14,7 +14,7 @@
 
 ---
 
-## MVP 2: LiDAR Processing 🔜 NEXT
+## MVP 2: LiDAR Processing ✅ DONE
 **Goal:** Upload a real LAS/LAZ file → see point cloud in CesiumJS
 
 - PDAL integration for LAS/LAZ reading
@@ -43,7 +43,7 @@
 
 ---
 
-## MVP 4: Photogrammetry / WebODM
+## MVP 4: Photogrammetry / WebODM ✅ CURRENT
 **Goal:** Upload drone images → process → display 3D model
 
 - WebODM API client
@@ -88,7 +88,7 @@
 
 ---
 
-## MVP 8: Multi-Temporal Change Detection
+## MVP 8: Multi-Temporal Change Detection ✅ DONE
 **Goal:** Compare two surveys, highlight changes
 
 - Dataset registration

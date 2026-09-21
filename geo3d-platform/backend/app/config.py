@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     WEBODM_URL: str = ""
     WEBODM_USERNAME: str = ""
     WEBODM_PASSWORD: str = ""
+    WEBODM_TOKEN: str = ""  # cached auth token (auto-populated)
+    ODM_DIR: str = ""
+    ODM_UPLOADS_DIR: str = ""
+    ODM_RESULTS_DIR: str = ""
+    ODM_MAX_IMAGES: int = 500
 
     # AI
     AI_ENABLED: bool = True
@@ -56,6 +61,12 @@ class Settings(BaseSettings):
             self.TERRAIN_DIR = os.path.join(self.DATA_DIR, "terrain")
         if not self.TILES_DIR:
             self.TILES_DIR = os.path.join(self.DATA_DIR, "tiles")
+        if not self.ODM_DIR:
+            self.ODM_DIR = os.path.join(self.DATA_DIR, "odm")
+        if not self.ODM_UPLOADS_DIR:
+            self.ODM_UPLOADS_DIR = os.path.join(self.ODM_DIR, "uploads")
+        if not self.ODM_RESULTS_DIR:
+            self.ODM_RESULTS_DIR = os.path.join(self.ODM_DIR, "results")
 
 
 @lru_cache()

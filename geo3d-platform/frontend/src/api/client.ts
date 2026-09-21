@@ -216,12 +216,15 @@ export const api = {
     apiClient.post('/ai/chat', { dataset_id: datasetId, query }),
 
   // Multi-Temporal Change Detection (MVP 8)
-  compareTemporalSurveys: (baselineId: string, comparisonId: string, gridRes: number = 2.0) =>
+  compareTemporalSurveys: (baselineId: string, comparisonId?: string, gridRes: number = 2.0, simulateShift: boolean = false) =>
     apiClient.post('/temporal/compare', {
       baseline_dataset_id: baselineId,
-      comparison_dataset_id: comparisonId,
+      comparison_dataset_id: comparisonId || baselineId,
       grid_resolution: gridRes,
+      simulate_temporal_shift: simulateShift || (!comparisonId || comparisonId === baselineId),
     }),
+  getTemporalDemo: () =>
+    apiClient.get('/temporal/demo'),
 
   // GL3D Photogrammetry Scenes
   getGL3DScenes: (query: string = '') =>
@@ -237,4 +240,94 @@ export const api = {
       project_name: projectName,
       max_points: maxPoints,
     }),
+
+  // ── ODM / Photogrammetry (MVP 4) ──────────────────────────────────────
+  odmHealth: () =>
+    apiClient.get<ODMHealthResponse>('/odm/health'),
+
+  odmNodes: () =>
+    apiClient.get<{ nodes: ODMNode[]; count: number }>('/odm/nodes'),
+
+  odmCreateTask: (projectId: string, images: File[], taskName: string = 'Photogrammetry Task', options: Record<string, unknown> = {}) => {
+    const form = new FormData()
+    images.forEach((img) => form.append('images', img))
+    form.append('task_name', taskName)
+    form.append('feature_quality', String(options.feature_quality || 'high'))
+    form.append('generate_dsm', String(options.generate_dsm ?? true))
+    form.append('generate_dtm', String(options.generate_dtm ?? true))
+    form.append('mesh_size', String(options.mesh_size || 200000))
+    return apiClient.post<ODMTaskResponse>(`/odm/projects/${projectId}/tasks`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 300000, // 5 min for large uploads
+    })
+  },
+
+  odmGetTask: (taskId: string) =>
+    apiClient.get<ODMTaskResponse>(`/odm/tasks/${taskId}`),
+
+  odmListTasks: (projectId?: string) =>
+    apiClient.get<ODMTaskResponse[]>(`/odm/tasks${projectId ? `?project_id=${projectId}` : ''}`),
+
+  odmGetResults: (taskId: string) =>
+    apiClient.get<{ task_id: string; status: string; results: ODMResultAsset[] }>(`/odm/tasks/${taskId}/results`),
+
+  odmImportResults: (taskId: string) =>
+    apiClient.post<{ status: string; task_id: string; dataset_id: string | null; imported_assets: string[]; message: string }>(
+      `/odm/tasks/${taskId}/import`
+    ),
+
+  odmDeleteTask: (taskId: string) =>
+    apiClient.delete(`/odm/tasks/${taskId}`),
+}
+
+// ─── ODM Types ───────────────────────────────────────────────────────────
+
+export interface ODMHealthResponse {
+  connected: boolean
+  mock_mode: boolean
+  message: string
+  node_count: number
+  nodes: ODMNode[] | null
+  processing_options: ODMProcessingOption[] | null
+}
+
+export interface ODMNode {
+  id: number
+  hostname: string
+  port: number
+  api_version: string
+  engine: string
+  engine_version: string
+  online: boolean
+  queue_count: number
+  max_parallel_tasks: number
+}
+
+export interface ODMProcessingOption {
+  name: string
+  label: string
+  type: string
+  values?: string[]
+  default: unknown
+}
+
+export interface ODMTaskResponse {
+  task_id: string
+  odm_project_id: number | null
+  job_id: string | null
+  status: string
+  progress: number
+  image_count: number
+  task_name: string
+  processing_time: number | null
+  available_assets: string[] | null
+  error_message: string | null
+  created_at: string | null
+}
+
+export interface ODMResultAsset {
+  type: string
+  name: string
+  format: string
+  description: string
 }
