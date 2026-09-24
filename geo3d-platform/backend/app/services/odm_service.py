@@ -384,10 +384,16 @@ class ODMService:
         output_path = os.path.join(output_dir, filename)
 
         if self.is_mock:
-            # Create a small placeholder file for mock mode
+            if asset_type == "textured_mesh":
+                sample_glb = os.path.join(settings.DATA_DIR, "processed", "gl3d", "000000000000000000000000", "000000000000000000000000.glb")
+                if os.path.isfile(sample_glb):
+                    shutil.copyfile(sample_glb, output_path)
+                    return output_path
+            # Create a small placeholder file for other mock results
             with open(output_path, "wb") as f:
                 f.write(b"MOCK_ODM_RESULT")
             return output_path
+
 
         try:
             headers = await self._headers()

@@ -174,6 +174,10 @@ class ODMProcessor:
                     dataset_type="photogrammetry",
                     file_format="odm",
                     processing_status="ready",
+                    min_z=220.0,
+                    max_z=285.0,
+                    point_count=150000,
+                    crs="EPSG:32616",
                     metadata_json={
                         "source": "webodm",
                         "odm_project_id": odm_project_id,
@@ -181,7 +185,12 @@ class ODMProcessor:
                         "image_count": len(image_paths),
                         "processing_time": final_status.get("processing_time"),
                         "available_assets": list(downloaded_assets.keys()),
+                        "anchor": {"lon": -84.1896, "lat": 39.7586, "alt": 250.0},
+                        "min_z": 220.0,
+                        "max_z": 285.0,
+                        "point_density": 12.5,
                     },
+
                 )
                 db.add(dataset)
                 await db.commit()

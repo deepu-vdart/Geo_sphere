@@ -1,4 +1,4 @@
-﻿"""
+"""
 AI Geospatial Analysis & Conversational Assistant Service (MVP 7)
 Parses natural language spatial queries, executes spatial tool intents,
 and returns both grounded answers and interactive CesiumJS viewer actions.
@@ -53,17 +53,24 @@ class AIAnalysisService:
         if terrain_derivatives and "slope_aspect_stats" in terrain_derivatives:
             slope_stats = terrain_derivatives["slope_aspect_stats"]
 
+        raw_min_z = dataset_metadata.get("min_z")
+        raw_max_z = dataset_metadata.get("max_z")
+        min_z_val = float(raw_min_z) if raw_min_z is not None else 0.0
+        max_z_val = float(raw_max_z) if raw_max_z is not None else (min_z_val + 50.0)
+        relief_m = round(max_z_val - min_z_val, 2)
+
         structured_metrics = {
             "dataset_name": dataset_metadata.get("name", "LiDAR Survey"),
             "crs": dataset_metadata.get("crs", "EPSG:32616"),
             "total_points": total_pts,
-            "point_density_pts_m2": dataset_metadata.get("point_density", 0.0),
+            "point_density_pts_m2": float(dataset_metadata.get("point_density") or 0.0),
             "elevation": {
-                "min_m": dataset_metadata.get("min_z", 0.0),
-                "max_m": dataset_metadata.get("max_z", 0.0),
-                "relief_m": round(float(dataset_metadata.get("max_z", 0.0)) - float(dataset_metadata.get("min_z", 0.0)), 2)
+                "min_m": min_z_val,
+                "max_m": max_z_val,
+                "relief_m": relief_m
             },
-            "center": dataset_metadata.get("center", {"lon": -84.1896, "lat": 39.7586, "alt": 250.0}),
+            "center": dataset_metadata.get("center") or {"lon": -84.1896, "lat": 39.7586, "alt": 250.0},
+
             "slope": {
                 "mean_deg": slope_stats.get("mean_slope_deg", 6.8),
                 "max_deg": slope_stats.get("max_slope_deg", 34.2),

@@ -90,6 +90,7 @@ async def init_db():
 
             from app.models import project, dataset, processing_job, asset  # noqa: F401
             await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(_ensure_sqlite_schema)
             logger.info("Database tables verified.")
 
     except Exception as e:
@@ -107,4 +108,22 @@ async def init_db():
         async with engine.begin() as conn:
             from app.models import project, dataset, processing_job, asset  # noqa: F401
             await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(_ensure_sqlite_schema)
         logger.info(f"Fallback SQLite database initialized at {sqlite_path}.")
+
+
+def _ensure_sqlite_schema(sync_conn):
+    """Ensure newly added columns exist in SQLite tables (simple auto-migration)."""
+    try:
+        cursor = sync_conn.connection.cursor()
+        cursor.execute("PRAGMA table_info(processing_jobs)")
+        rows = cursor.fetchall()
+        if rows:
+            existing_cols = {row[1] for row in rows}
+            if "odm_task_id" not in existing_cols:
+                cursor.execute("ALTER TABLE processing_jobs ADD COLUMN odm_task_id VARCHAR(128)")
+            if "odm_project_id" not in existing_cols:
+                cursor.execute("ALTER TABLE processing_jobs ADD COLUMN odm_project_id INTEGER")
+    except Exception as e:
+        logger.debug(f"SQLite schema check: {e}")
+
