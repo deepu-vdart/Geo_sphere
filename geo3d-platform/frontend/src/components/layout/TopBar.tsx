@@ -3,7 +3,9 @@ import { useAppStore, useViewerStore } from '../../stores'
 
 export default function TopBar() {
   const { backendStatus, backendVersion, checkBackend } = useAppStore()
-  const { aiDrawerOpen, setAiDrawerOpen } = useViewerStore()
+  const { aiDrawerOpen, setAiDrawerOpen, splitCompareMode, setSplitCompareMode } = useViewerStore()
+  const activeDataset = useAppStore((s) => s.activeDataset)
+
   const [time, setTime] = useState(new Date())
 
   useEffect(() => {
@@ -37,7 +39,52 @@ export default function TopBar() {
 
       <div className="topbar__spacer" />
 
+      {/* Photogrammetry Split View (Input Images ↔ 3D Output) */}
+      <button
+        id="btn-split-compare-toggle"
+        onClick={() => setSplitCompareMode(!splitCompareMode)}
+        className="btn"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          fontSize: 11,
+          padding: '4px 12px',
+          borderRadius: 6,
+          background: splitCompareMode
+            ? 'linear-gradient(135deg, rgba(14, 165, 233, 0.3), rgba(99, 102, 241, 0.4))'
+            : 'rgba(255, 255, 255, 0.05)',
+          border: splitCompareMode
+            ? '1px solid #38bdf8'
+            : '1px solid rgba(255, 255, 255, 0.12)',
+          color: splitCompareMode ? '#38bdf8' : '#e2e8f0',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          boxShadow: splitCompareMode ? '0 0 14px rgba(56, 189, 248, 0.35)' : 'none',
+          marginRight: 8,
+        }}
+        title="Toggle Split View: Left = Input Drone Images, Right = Reconstructed 3D Output (Paper Style)"
+      >
+        <span>🖼️</span>
+        <span style={{ fontWeight: 600 }}>Split View (Images ↔ 3D)</span>
+        {splitCompareMode && (
+          <span
+            style={{
+              fontSize: 9,
+              background: '#38bdf8',
+              color: '#0f172a',
+              fontWeight: 700,
+              padding: '1px 5px',
+              borderRadius: 10,
+            }}
+          >
+            ACTIVE
+          </span>
+        )}
+      </button>
+
       {/* AI Assistant Copilot Toggle */}
+
       <button
         id="btn-ai-copilot-toggle"
         onClick={() => setAiDrawerOpen(!aiDrawerOpen)}

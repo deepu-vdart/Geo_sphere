@@ -678,6 +678,8 @@ export default function CesiumViewer() {
             } else if (pointCloudColorMode === 'intensity') {
               const intVal = Math.min(1.0, (p.intensity || 0) / 50000)
               color = new Cesium.Color(intVal, intVal, intVal, 1.0)
+            } else if (p.r !== undefined && p.g !== undefined && p.b !== undefined && (pointCloudColorMode === 'rgb' || activeDataset?.dataset_type === 'photogrammetry')) {
+              color = new Cesium.Color(p.r / 255, p.g / 255, p.b / 255, 1.0)
             } else {
               color = CLASSIFICATION_CESIUM_COLORS[p.classification] || Cesium.Color.fromCssColorString('#8b5a2b')
             }
@@ -685,15 +687,16 @@ export default function CesiumViewer() {
             collection.add({
               position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt),
               color: color,
-              pixelSize: pointSize || 5,
+              pixelSize: pointSize || (activeDataset?.dataset_type === 'photogrammetry' ? 5 : 4),
             })
           })
 
           if (points.length > 0) {
             const mid = points[Math.floor(points.length / 2)]
+            const zoomDist = activeDataset?.dataset_type === 'photogrammetry' ? 280 : 600
             viewer.camera.flyTo({
-              destination: Cesium.Cartesian3.fromDegrees(mid.lon - 0.004, mid.lat - 0.006, mid.alt + 600),
-              orientation: { heading: Cesium.Math.toRadians(30), pitch: Cesium.Math.toRadians(-25), roll: 0 },
+              destination: Cesium.Cartesian3.fromDegrees(mid.lon - 0.002, mid.lat - 0.003, mid.alt + zoomDist),
+              orientation: { heading: Cesium.Math.toRadians(35), pitch: Cesium.Math.toRadians(-35), roll: 0 },
               duration: 2.0,
             })
           }
@@ -707,7 +710,7 @@ export default function CesiumViewer() {
     }
   }, [activeDataset, pointCloudColorMode, pointSize, activeClassFilters, pointBudget])
  
-  // ── Render GL3D Drone Camera Network ──────────────────────────────────────
+  // ── Render Drone Camera Stations ──────────────────────────────────────────
   useEffect(() => {
     if (!viewerRef.current) return
     const viewer = viewerRef.current
@@ -716,7 +719,8 @@ export default function CesiumViewer() {
     gl3dCameraEntitiesRef.current.forEach((e) => viewer.entities.remove(e))
     gl3dCameraEntitiesRef.current = []
 
-    if (!activeDataset || activeDataset.dataset_type !== 'gl3d_scene' || !showDroneCameras) return
+    const isDroneSupported = activeDataset?.dataset_type === 'gl3d_scene' || activeDataset?.dataset_type === 'photogrammetry'
+    if (!activeDataset || !isDroneSupported || !showDroneCameras) return
 
     const meta = activeDataset.metadata_json as any
     const rawCameras: any[] = meta?.cameras || []
@@ -729,15 +733,24 @@ export default function CesiumViewer() {
     const cosLat = Math.cos((anchorLat * Math.PI) / 180)
 
     // Render drone capture stations
-    rawCameras.slice(0, 150).forEach((cam: any) => {
-      const center = cam.center || [0, 0, 0]
-      const forward = cam.forward || [0, 0, -1]
+    rawCameras.slice(0, 150).forEach((cam: any, idx: number) => {
+      let lon: number
+      let lat: number
+      let alt: number
 
-      const lon = anchorLon + center[0] / (111320 * cosLat)
-      const lat = anchorLat + center[1] / 110540
-      const alt = anchorAlt + center[2]
+      if (cam.lon !== undefined && cam.lat !== undefined) {
+        lon = cam.lon
+        lat = cam.lat
+        alt = cam.alt || (anchorAlt + 55)
+      } else {
+        const center = cam.center || [0, 0, 0]
+        lon = anchorLon + center[0] / (111320 * cosLat)
+        lat = anchorLat + center[1] / 110540
+        alt = anchorAlt + center[2]
+      }
 
       const pos = Cesium.Cartesian3.fromDegrees(lon, lat, alt)
+      const camLabel = cam.filename ? `📷 ${cam.filename}` : `📷 #${cam.image_id || idx + 1}`
 
       // Drone station entity
       const camEntity = viewer.entities.add({
@@ -750,7 +763,7 @@ export default function CesiumViewer() {
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
         label: {
-          text: `📷 #${cam.image_id}`,
+          text: camLabel,
           font: '10px sans-serif',
           fillColor: Cesium.Color.WHITE,
           showBackground: true,
@@ -761,31 +774,23 @@ export default function CesiumViewer() {
         },
       })
       ;(camEntity as any).datasetInfo = {
-        object: `GL3D Drone Camera #${cam.image_id}`,
-        detail: `Focal Length: fx=${cam.fx?.toFixed(1) || 'N/A'} | Local Coords: [${center[0]?.toFixed(1)}, ${center[1]?.toFixed(1)}, ${center[2]?.toFixed(1)}]`,
+        object: `Drone Camera ${camLabel}`,
+        detail: `Position: [${lat.toFixed(6)}, ${lon.toFixed(6)}] | Altitude: ${alt.toFixed(1)}m | Focal: ${cam.focal || cam.fx || 'N/A'}`,
       }
       gl3dCameraEntitiesRef.current.push(camEntity)
 
-      // Look-at direction ray
-      const lookDist = 12.0
-      const lookX = center[0] + (forward[0] || 0) * lookDist
-      const lookY = center[1] + (forward[1] || 0) * lookDist
-      const lookZ = center[2] + (forward[2] || -1) * lookDist
-
-      const lookLon = anchorLon + lookX / (111320 * cosLat)
-      const lookLat = anchorLat + lookY / 110540
-      const lookAlt = anchorAlt + lookZ
-
+      // Look-at direction ray towards ground anchor
+      const rayGroundPos = Cesium.Cartesian3.fromDegrees(lon, lat, anchorAlt)
       const rayEntity = viewer.entities.add({
         polyline: {
-          positions: [pos, Cesium.Cartesian3.fromDegrees(lookLon, lookLat, lookAlt)],
+          positions: [pos, rayGroundPos],
           width: 1.5,
           material: new Cesium.PolylineDashMaterialProperty({
-            color: Cesium.Color.fromCssColorString('rgba(56, 189, 248, 0.7)'),
+            color: Cesium.Color.fromCssColorString('rgba(56, 189, 248, 0.35)'),
+            dashLength: 8.0,
           }),
         },
       })
-      gl3dCameraEntitiesRef.current.push(rayEntity)
     })
   }, [activeDataset, showDroneCameras])
 

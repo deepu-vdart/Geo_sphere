@@ -296,7 +296,15 @@ interface ViewerState {
   loadOdmHealth: () => Promise<void>
   loadOdmTasks: (projectId?: string) => Promise<void>
   refreshOdmTask: (taskId: string) => Promise<void>
+
+  // Photogrammetry Side-by-Side Split View (Input Images vs 3D Output)
+  splitCompareMode: boolean
+  setSplitCompareMode: (enabled: boolean) => void
+  toggleSplitCompareMode: () => void
+  selectedInputPhoto: { filename: string; url: string; size_bytes?: number } | null
+  setSelectedInputPhoto: (photo: { filename: string; url: string; size_bytes?: number } | null) => void
 }
+
 
 export const useViewerStore = create<ViewerState>((set) => ({
   showMapBackground: false,
@@ -475,4 +483,12 @@ export const useViewerStore = create<ViewerState>((set) => ({
       console.error('Failed to refresh ODM task:', e)
     }
   },
+
+  // Photogrammetry Side-by-Side Split View
+  splitCompareMode: false,
+  setSplitCompareMode: (enabled: boolean) => set({ splitCompareMode: enabled }),
+  toggleSplitCompareMode: () => set((s) => ({ splitCompareMode: !s.splitCompareMode })),
+  selectedInputPhoto: null,
+  setSelectedInputPhoto: (photo) => set({ selectedInputPhoto: photo }),
 }))
+

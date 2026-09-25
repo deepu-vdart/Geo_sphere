@@ -5,6 +5,7 @@ import RightPanel from '../components/layout/RightPanel'
 import BottomBar from '../components/layout/BottomBar'
 
 import AIAssistantChat from '../components/panels/AIAssistantChat'
+import PhotogrammetrySplitView from '../components/panels/PhotogrammetrySplitView'
 
 // Lazy-load CesiumJS to avoid blocking initial render
 const CesiumViewer = lazy(() => import('../components/cesium/CesiumViewer'))
@@ -15,7 +16,7 @@ export default function MainPage() {
       <TopBar />
       <LeftSidebar />
 
-      {/* ── 3D Viewer ──────────────────────────────────────────────────── */}
+      {/* ── 3D Viewer & Photogrammetry Split View ───────────────────────── */}
       <Suspense
         fallback={
           <div className="viewer-container">
@@ -26,8 +27,11 @@ export default function MainPage() {
           </div>
         }
       >
-        <CesiumViewer />
+        <PhotogrammetrySplitView>
+          <CesiumViewer />
+        </PhotogrammetrySplitView>
       </Suspense>
+
 
       {/* ── AI Geospatial Assistant Drawer ────────────────────────────── */}
       <AIAssistantChat />

@@ -24,7 +24,9 @@ export default function ODMPanel() {
     odmHealth, odmTasks, odmUploadProgress,
     loadOdmHealth, loadOdmTasks, refreshOdmTask,
     setOdmUploadProgress,
+    setSplitCompareMode,
   } = useViewerStore()
+
 
   const [dragActive, setDragActive] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
@@ -33,6 +35,7 @@ export default function ODMPanel() {
   const [generateDsm, setGenerateDsm] = useState(true)
   const [generateDtm, setGenerateDtm] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [loadingPreset, setLoadingPreset] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -55,6 +58,53 @@ export default function ODMPanel() {
 
     return () => clearInterval(interval)
   }, [odmTasks])
+
+  const handleLoadAukermanPreset = async () => {
+    if (!activeProject) {
+      setError('Please select or create an active project first.')
+      return
+    }
+    setLoadingPreset(true)
+    setError(null)
+    try {
+      const res = await api.odmLoadAukermanPreset(activeProject.id)
+      setSuccess('Loaded DroneDB Aukerman Benchmark dataset!')
+      await useAppStore.getState().loadDatasets(activeProject.id)
+      const datasets = useAppStore.getState().datasets
+      const aukermanDs = datasets.find((d) => d.id === res.data.dataset_id || d.name.includes('Aukerman'))
+      if (aukermanDs) {
+        useAppStore.getState().setActiveDataset(aukermanDs)
+        useViewerStore.getState().setShowDroneCameras(true)
+        useViewerStore.getState().setPointCloudColorMode('rgb')
+      }
+    } catch (e: any) {
+      setError(e.response?.data?.detail || 'Failed to load Aukerman preset')
+    } finally {
+      setLoadingPreset(false)
+    }
+  }
+
+  const handleViewPointCloud = async (taskId: string) => {
+    if (!activeProject) return
+    try {
+      await useAppStore.getState().loadDatasets(activeProject.id)
+      const datasets = useAppStore.getState().datasets
+      const ds = datasets.find((d) => {
+        const meta = d.metadata_json as any
+        return meta?.odm_task_id === taskId || d.name.includes(taskId.substring(0, 6))
+      })
+      if (ds) {
+        useAppStore.getState().setActiveDataset(ds)
+        useViewerStore.getState().setShowDroneCameras(true)
+        useViewerStore.getState().setPointCloudColorMode('rgb')
+        setSuccess(`Now viewing 3D Point Cloud for ${ds.name}`)
+      } else {
+        await handleImport(taskId)
+      }
+    } catch {
+      setError('Could not open point cloud viewer')
+    }
+  }
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -185,13 +235,86 @@ export default function ODMPanel() {
           boxShadow: `0 0 6px ${odmHealth?.connected ? '#10b981' : odmHealth?.mock_mode ? '#f59e0b55' : '#ef444455'}`,
         }} />
         <span style={{ color: '#cbd5e1', flex: 1 }}>
-          {odmHealth?.connected ? 'WebODM Connected' : odmHealth?.mock_mode ? 'Demo Mode' : 'Disconnected'}
+          {odmHealth?.connected ? 'WebODM Connected' : odmHealth?.mock_mode ? 'Demo Mode (Local Photogrammetry)' : 'Disconnected'}
         </span>
         {odmHealth && (
           <span style={{ color: '#64748b', fontSize: 10 }}>
             {odmHealth.node_count} node{odmHealth.node_count !== 1 ? 's' : ''}
           </span>
         )}
+      </div>
+
+      {/* ── DroneDB Aukerman Benchmark Preset ────────────── */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(56,189,248,0.12), rgba(99,102,241,0.08))',
+        border: '1px solid rgba(56,189,248,0.3)',
+        borderRadius: 8,
+        padding: '10px 12px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 16 }}>🛰️</span>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#f8fafc' }}>
+                DroneDB Aukerman Benchmark
+              </div>
+              <div style={{ fontSize: 10, color: '#94a3b8' }}>
+                Cleveland, Ohio Aerial Drone Survey
+              </div>
+            </div>
+          </div>
+          <span style={{
+            fontSize: 9, fontWeight: 600, color: '#38bdf8',
+            background: 'rgba(56,189,248,0.15)', padding: '2px 6px', borderRadius: 4,
+          }}>
+            Benchmark
+          </span>
+        </div>
+
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4,
+          margin: '4px 0', fontSize: 10, textAlign: 'center',
+        }}>
+          <div style={{ background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: 4 }}>
+            <div style={{ color: '#38bdf8', fontWeight: 600 }}>9.48M</div>
+            <div style={{ color: '#64748b', fontSize: 9 }}>Points</div>
+          </div>
+          <div style={{ background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: 4 }}>
+            <div style={{ color: '#a855f7', fontWeight: 600 }}>77</div>
+            <div style={{ color: '#64748b', fontSize: 9 }}>Drone Photos</div>
+          </div>
+          <div style={{ background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: 4 }}>
+            <div style={{ color: '#10b981', fontWeight: 600 }}>2.81 cm</div>
+            <div style={{ color: '#64748b', fontSize: 9 }}>GSD Res</div>
+          </div>
+        </div>
+
+        <button
+          onClick={handleLoadAukermanPreset}
+          disabled={loadingPreset || !activeProject}
+          style={{
+            background: 'linear-gradient(90deg, #0284c7, #4f46e5)',
+            color: 'white',
+            border: 'none',
+            borderRadius: 6,
+            padding: '7px 10px',
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: activeProject && !loadingPreset ? 'pointer' : 'not-allowed',
+            opacity: activeProject && !loadingPreset ? 1 : 0.6,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            boxShadow: '0 2px 8px rgba(2,132,199,0.3)',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          {loadingPreset ? '⏳ Loading Benchmark...' : '✨ Load DroneDB Aukerman Point Cloud'}
+        </button>
       </div>
 
       {/* ── Image Upload Zone ────────────────────────────── */}
@@ -423,15 +546,38 @@ export default function ODMPanel() {
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                   {task.status === 'COMPLETED' && (
-                    <button
-                      onClick={() => handleImport(task.task_id || task.job_id || '')}
-                      style={{
-                        fontSize: 9, padding: '2px 8px', borderRadius: 4, cursor: 'pointer',
-                        background: 'rgba(16,185,129,0.15)', color: '#34d399', border: 'none',
-                      }}
-                    >
-                      📥 Import Results
-                    </button>
+                      <button
+                        onClick={() => handleViewPointCloud(task.task_id || task.job_id || '')}
+                        style={{
+                          fontSize: 9, padding: '2px 8px', borderRadius: 4, cursor: 'pointer',
+                          background: 'linear-gradient(90deg, #0284c7, #2563eb)', color: '#ffffff', border: 'none',
+                          fontWeight: 600,
+                        }}
+                        title="View Reconstructed 3D Point Cloud in Cesium"
+                      >
+                        🎯 3D Point Cloud
+                      </button>
+                      <button
+                        onClick={() => handleImport(task.task_id || task.job_id || '')}
+                        style={{
+                          fontSize: 9, padding: '2px 8px', borderRadius: 4, cursor: 'pointer',
+                          background: 'rgba(16,185,129,0.15)', color: '#34d399', border: 'none',
+                        }}
+                      >
+                        📥 Import Results
+                      </button>
+                      <button
+                        onClick={() => setSplitCompareMode(true)}
+                        style={{
+                          fontSize: 9, padding: '2px 8px', borderRadius: 4, cursor: 'pointer',
+                          background: 'rgba(56,189,248,0.2)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.4)',
+                          fontWeight: 600,
+                        }}
+                        title="Open Side-by-Side View: Input Images on Left, 3D Output on Right"
+                      >
+                        🖼️ Split View
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={() => handleDelete(task.task_id || task.job_id || '')}
@@ -442,6 +588,7 @@ export default function ODMPanel() {
                   >
                     🗑️ Delete
                   </button>
+
                 </div>
 
                 {/* Error Message */}

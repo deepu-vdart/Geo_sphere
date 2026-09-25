@@ -553,6 +553,38 @@ async def import_odm_results(
     )
 
 
+# ─── Benchmark Preset ───────────────────────────────────────────────────
+
+@router.post("/preset/aukerman")
+async def load_aukerman_preset(
+    project_id: uuid.UUID = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Import and load the full DroneDB Aukerman Benchmark Dataset
+    into the specified project for immediate 3D visualization.
+    """
+    # Verify project exists
+    result = await db.execute(
+        select(Project).where(Project.id == project_id, Project.status == "active")
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found.")
+
+    from app.services.odm_service import create_aukerman_benchmark_dataset
+    dataset = await create_aukerman_benchmark_dataset(project_id, db)
+    return {
+        "status": "success",
+        "message": "DroneDB Aukerman benchmark dataset loaded successfully.",
+        "dataset_id": str(dataset.id),
+        "name": dataset.name,
+        "point_count": dataset.point_count,
+        "anchor": (dataset.metadata_json or {}).get("anchor"),
+        "camera_count": (dataset.metadata_json or {}).get("camera_count", 77),
+    }
+
+
 # ─── Helpers ─────────────────────────────────────────────────────────────
 
 def _safe_uuid(s: str) -> uuid.UUID:

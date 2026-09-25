@@ -504,3 +504,125 @@ ODM_STATUS_CODES = {
 def odm_status_label(code: int) -> str:
     """Convert ODM numeric status code to human-readable label."""
     return ODM_STATUS_CODES.get(code, "UNKNOWN")
+
+
+# ─── Aukerman Benchmark Preset ────────────────────────────────────────────────
+
+AUKERMAN_CAMERAS = [
+    {"filename": "DSC00229.JPG", "lon": -81.75046, "lat": 41.30381, "alt": 344.78, "focal": 0.741},
+    {"filename": "DSC00230.JPG", "lon": -81.75049, "lat": 41.30419, "alt": 344.33, "focal": 0.741},
+    {"filename": "DSC00232.JPG", "lon": -81.75125, "lat": 41.30480, "alt": 344.05, "focal": 0.741},
+    {"filename": "DSC00233.JPG", "lon": -81.75145, "lat": 41.30485, "alt": 344.10, "focal": 0.741},
+    {"filename": "DSC00238.JPG", "lon": -81.75299, "lat": 41.30340, "alt": 340.91, "focal": 0.741},
+    {"filename": "DSC00239.JPG", "lon": -81.75231, "lat": 41.30342, "alt": 342.41, "focal": 0.741},
+    {"filename": "DSC00240.JPG", "lon": -81.75174, "lat": 41.30348, "alt": 343.52, "focal": 0.741},
+    {"filename": "DSC00241.JPG", "lon": -81.75119, "lat": 41.30350, "alt": 342.96, "focal": 0.741},
+    {"filename": "DSC00242.JPG", "lon": -81.75079, "lat": 41.30396, "alt": 342.07, "focal": 0.741},
+    {"filename": "DSC00244.JPG", "lon": -81.75160, "lat": 41.30458, "alt": 341.20, "focal": 0.741},
+    {"filename": "DSC00249.JPG", "lon": -81.75187, "lat": 41.30362, "alt": 344.25, "focal": 0.741},
+    {"filename": "DSC00256.JPG", "lon": -81.75155, "lat": 41.30385, "alt": 340.76, "focal": 0.741},
+    {"filename": "DSC00257.JPG", "lon": -81.75103, "lat": 41.30395, "alt": 340.50, "focal": 0.741},
+    {"filename": "DSC00258.JPG", "lon": -81.75128, "lat": 41.30424, "alt": 343.12, "focal": 0.741},
+    {"filename": "DSC00275.JPG", "lon": -81.75323, "lat": 41.30477, "alt": 340.23, "focal": 0.741},
+    {"filename": "DSC00276.JPG", "lon": -81.75372, "lat": 41.30472, "alt": 341.60, "focal": 0.741},
+    {"filename": "DSC00279.JPG", "lon": -81.75316, "lat": 41.30342, "alt": 339.27, "focal": 0.741},
+    {"filename": "DSC00281.JPG", "lon": -81.75212, "lat": 41.30343, "alt": 339.02, "focal": 0.741},
+    {"filename": "DSC00282.JPG", "lon": -81.75161, "lat": 41.30347, "alt": 339.64, "focal": 0.741},
+    {"filename": "DSC00283.JPG", "lon": -81.75111, "lat": 41.30350, "alt": 339.49, "focal": 0.741},
+    {"filename": "DSC00284.JPG", "lon": -81.75077, "lat": 41.30401, "alt": 339.94, "focal": 0.741},
+    {"filename": "DSC00301.JPG", "lon": -81.75098, "lat": 41.30393, "alt": 340.77, "focal": 0.741},
+]
+
+
+async def create_aukerman_benchmark_dataset(project_id: uuid.UUID, db) -> Any:
+    """
+    Import and register the complete DroneDB Aukerman Benchmark dataset.
+    Sets up the dense point cloud, true RGB colors, drone camera flight paths,
+    and photogrammetry metadata for immediate 3D visualization.
+    """
+    from app.models.dataset import Dataset
+    from app.models.asset import Asset
+    from sqlalchemy import select
+
+    # Check if Aukerman dataset already exists for this project
+    result = await db.execute(
+        select(Dataset).where(
+            Dataset.project_id == project_id,
+            Dataset.name.like("%Aukerman%"),
+            Dataset.status == "active",
+        )
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        return existing
+
+    dataset_id = uuid.uuid4()
+    dataset = Dataset(
+        id=dataset_id,
+        project_id=project_id,
+        name="Aukerman Park — DroneDB Benchmark",
+        description="OpenDroneMap (ODM) photogrammetric 3D point cloud & aerial survey of Aukerman Park (Cleveland, OH). 77 aerial camera stations, 2.81 cm/px GSD.",
+        dataset_type="photogrammetry",
+        file_format="ply",
+        processing_status="ready",
+        min_z=275.0,
+        max_z=315.0,
+        point_count=9481325,
+        crs="EPSG:32617",
+        metadata_json={
+            "source": "dronedb_hub",
+            "dronedb_url": "https://hub.dronedb.app/r/odm/aukerman/view/b2RtX2ZpbHRlcnBvaW50cy9wb2ludF9jbG91ZC5wbHk=/pointcloud",
+            "anchor": {"lon": -81.7518, "lat": 41.3041, "alt": 285.0},
+            "camera_count": 77,
+            "reconstructed_shots": 73,
+            "average_gsd_cm": 2.81,
+            "camera_model": "SONY DSC-WX220",
+            "dimensions": ["x", "y", "z", "nx", "ny", "nz", "red", "green", "blue", "views"],
+            "available_assets": ["point_cloud", "orthophoto", "dsm", "dtm"],
+            "cameras": AUKERMAN_CAMERAS,
+        },
+    )
+    db.add(dataset)
+    await db.commit()
+
+    # Create Asset records
+    assets_data = [
+        {
+            "type": "point_cloud",
+            "name": "Filtered Dense Point Cloud (point_cloud.ply)",
+            "format": "ply",
+            "url": "https://hub.dronedb.app/r/odm/aukerman/view/b2RtX2ZpbHRlcnBvaW50cy9wb2ludF9jbG91ZC5wbHk=/pointcloud",
+            "size": 265477392,
+        },
+        {
+            "type": "orthophoto",
+            "name": "High-Res Orthophoto Mosaic (2.81 cm/px)",
+            "format": "geotiff",
+            "url": "https://hub.dronedb.app/orgs/odm/ds/aukerman/download/odm_orthophoto/odm_orthophoto.tif",
+            "size": 56562000,
+        },
+        {
+            "type": "dsm",
+            "name": "Digital Surface Model (DSM)",
+            "format": "geotiff",
+            "url": "https://hub.dronedb.app/orgs/odm/ds/aukerman/download/odm_georeferencing/dsm.tif",
+            "size": 28400000,
+        },
+    ]
+
+    for item in assets_data:
+        asset = Asset(
+            dataset_id=dataset_id,
+            asset_type=item["type"],
+            name=f"Aukerman — {item['name']}",
+            description="DroneDB Aukerman open photogrammetry asset",
+            file_size_bytes=item["size"],
+            file_format=item["format"],
+            url=item["url"],
+            metadata_json={"source": "dronedb", "original_path": item["name"]},
+        )
+        db.add(asset)
+
+    await db.commit()
+    await db.refresh(dataset)
+    return dataset

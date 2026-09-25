@@ -278,7 +278,36 @@ export const api = {
 
   odmDeleteTask: (taskId: string) =>
     apiClient.delete(`/odm/tasks/${taskId}`),
+
+  odmLoadAukermanPreset: (projectId: string) =>
+    apiClient.post<{
+      status: string
+      message: string
+      dataset_id: string
+      name: string
+      point_count: number
+      anchor: { lon: number; lat: number; alt: number }
+      camera_count: number
+    }>(`/odm/preset/aukerman?project_id=${projectId}`),
+
+  // Input Drone Images (Multi-View Flight Imagery)
+  getDatasetInputImages: (datasetId: string) =>
+    apiClient.get<{
+      dataset_id: string
+      dataset_name: string
+      dataset_type: string
+      total_images: number
+      images: Array<{ filename: string; url: string; size_bytes?: number }>
+    }>(`/datasets/${datasetId}/input-images`),
+
+  getODMTaskImages: (taskId: string) =>
+    apiClient.get<{
+      task_id: string
+      total_images: number
+      images: Array<{ filename: string; url: string; size_bytes?: number }>
+    }>(`/odm/tasks/${taskId}/images`),
 }
+
 
 // ─── ODM Types ───────────────────────────────────────────────────────────
 
