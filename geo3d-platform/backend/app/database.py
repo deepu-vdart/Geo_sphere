@@ -11,11 +11,17 @@ settings = get_settings()
 
 db_url = settings.DATABASE_URL
 engine_kwargs = {"echo": settings.DEBUG}
-if "sqlite" not in db_url:
-    engine_kwargs["pool_size"] = settings.DATABASE_POOL_SIZE
-    engine_kwargs["max_overflow"] = settings.DATABASE_MAX_OVERFLOW
+try:
+    if "sqlite" not in db_url:
+        import asyncpg
+        engine_kwargs["pool_size"] = settings.DATABASE_POOL_SIZE
+        engine_kwargs["max_overflow"] = settings.DATABASE_MAX_OVERFLOW
+    engine = create_async_engine(db_url, **engine_kwargs)
+except Exception as ex:
+    logger.warning(f"Could not initialize {db_url} ({ex}), falling back to SQLite.")
+    db_url = f"sqlite+aiosqlite:///{os.path.join(settings.DATA_DIR, 'geo3d.db')}"
+    engine = create_async_engine(db_url, echo=settings.DEBUG)
 
-engine = create_async_engine(db_url, **engine_kwargs)
 
 
 def _setup_sqlite_shims(eng):

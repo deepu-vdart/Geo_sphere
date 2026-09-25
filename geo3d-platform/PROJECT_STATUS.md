@@ -32,6 +32,11 @@
 | **Multi-Temporal Change Detection** | ✅ COMPLETE | Volumetric Cut/Fill estimation, DEM of Difference (DoD), surface dynamics |
 | **3D Difference Visualizer** | ✅ COMPLETE | Colored differential point clouds (cut, fill, new structures, demolished) in CesiumJS |
 | **Temporal UI Panel** | ✅ COMPLETE | Multi-survey selector, parameter controls, demo shift mode, surface statistics |
+| **Dual-Viewer Architecture** | ✅ COMPLETE | Three-way engine toggle: Cesium 3D Globe, Potree COPC Inspector, and Side-by-Side Dual View |
+| **Potree 1.8+ WebGL Engine** | ✅ COMPLETE | Eye-Dome Lighting (EDL), point budget slider, surface normals, True RGB, ASPRS classification |
+| **2D Cross-Section Elevation Profiling** | ✅ COMPLETE | Interactive corridor transect slicing with real-time SVG profile chart and ΔZ metrics |
+| **COPC & Potree REST API** | ✅ COMPLETE | 4 endpoints: Potree metadata, high-density stream, cross-section slicing, and COPC downloads |
+
 
 
 ## Stack Health & Verification

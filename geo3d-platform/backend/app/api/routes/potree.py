@@ -244,7 +244,7 @@ async def get_potree_metadata(
         "scale": [0.001, 0.001, 0.001],
         "copc": {
             "enabled": True,
-            "url": f"/api/v1/datasets/{dataset_id}/copc.laz",
+            "url": f"/api/datasets/{dataset_id}/copc.laz",
             "chunk_size": 65536
         }
     }
@@ -253,7 +253,7 @@ async def get_potree_metadata(
 @router.get("/{dataset_id}/potree/points")
 async def get_potree_points(
     dataset_id: uuid.UUID,
-    limit: int = Query(50000, ge=1000, le=100000),
+    limit: int = Query(50000, ge=100, le=100000),
     classification: Optional[str] = Query(None, description="Comma-separated class filters (e.g. 2,5,6)"),
     db: AsyncSession = Depends(get_db)
 ):
@@ -273,8 +273,7 @@ async def get_potree_points(
     asset_res = await db.execute(
         select(Asset).where(
             Asset.dataset_id == dataset_id,
-            Asset.asset_type.in_(["point_cloud", "dense_point_cloud", "las", "laz"]),
-            Asset.status == "active"
+            Asset.asset_type.in_(["point_cloud", "dense_point_cloud", "las", "laz"])
         )
     )
     asset = asset_res.scalar_one_or_none()
@@ -457,8 +456,7 @@ async def get_copc_file(
     asset_res = await db.execute(
         select(Asset).where(
             Asset.dataset_id == dataset_id,
-            Asset.asset_type.in_(["copc", "dense_point_cloud", "point_cloud", "laz"]),
-            Asset.status == "active"
+            Asset.asset_type.in_(["copc", "dense_point_cloud", "point_cloud", "laz"])
         )
     )
     asset = asset_res.scalar_one_or_none()

@@ -55,7 +55,7 @@ async def test_potree_metadata_and_points():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         # 1. Test Metadata
-        meta_res = await ac.get(f"/api/v1/datasets/{ds_id}/potree/metadata.json")
+        meta_res = await ac.get(f"/api/datasets/{ds_id}/potree/metadata.json")
         assert meta_res.status_code == 200
         meta = meta_res.json()
         assert meta["version"] == "2.0"
@@ -65,7 +65,7 @@ async def test_potree_metadata_and_points():
         assert "pointAttributes" in meta
 
         # 2. Test Point Streaming
-        pts_res = await ac.get(f"/api/v1/datasets/{ds_id}/potree/points?limit=500")
+        pts_res = await ac.get(f"/api/datasets/{ds_id}/potree/points?limit=500")
         assert pts_res.status_code == 200
         pts_data = pts_res.json()
         assert pts_data["point_count"] > 0
@@ -86,7 +86,7 @@ async def test_potree_metadata_and_points():
 
         # 3. Test 2D Cross Section Slicing
         slice_res = await ac.post(
-            f"/api/v1/datasets/{ds_id}/potree/cross-section",
+            f"/api/datasets/{ds_id}/potree/cross-section",
             json={
                 "p1": {"x": -50.0, "y": -50.0, "z": 285.0},
                 "p2": {"x": 50.0, "y": 50.0, "z": 285.0},
