@@ -306,6 +306,29 @@ export const api = {
       total_images: number
       images: Array<{ filename: string; url: string; size_bytes?: number }>
     }>(`/odm/tasks/${taskId}/images`),
+
+  // Potree & COPC (Cloud-Optimized Point Cloud)
+  getPotreeMetadata: (datasetId: string) =>
+    apiClient.get<PotreeMetadataResponse>(`/datasets/${datasetId}/potree/metadata.json`),
+
+  getPotreePoints: (datasetId: string, limit = 50000, classification?: string) =>
+    apiClient.get<PotreePointsResponse>(`/datasets/${datasetId}/potree/points`, {
+      params: { limit, classification },
+    }),
+
+  computePotreeCrossSection: (
+    datasetId: string,
+    p1: { x: number; y: number; z: number },
+    p2: { x: number; y: number; z: number },
+    corridorWidth = 2.0,
+    maxPoints = 2000
+  ) =>
+    apiClient.post<PotreeCrossSectionResponse>(`/datasets/${datasetId}/potree/cross-section`, {
+      p1,
+      p2,
+      corridor_width: corridorWidth,
+      max_points: maxPoints,
+    }),
 }
 
 
@@ -360,3 +383,68 @@ export interface ODMResultAsset {
   format: string
   description: string
 }
+
+// ─── Potree & COPC Types ──────────────────────────────────────────────────
+
+export interface PotreeMetadataResponse {
+  version: string
+  name: string
+  description: string
+  points: number
+  projection: string
+  hierarchy: { firstChunkSize: number; stepSize: number; depth: number }
+  boundingBox: { min: [number, number, number]; max: [number, number, number] }
+  tightBoundingBox?: { min: [number, number, number]; max: [number, number, number] }
+  pointAttributes: Array<{ name: string; size: number; elements: number; elementSize: number; type: string }>
+  spacing: number
+  scale: [number, number, number]
+  copc?: { enabled: boolean; url: string; chunk_size: number }
+}
+
+export interface PotreePoint {
+  x: number
+  y: number
+  z: number
+  lon?: number
+  lat?: number
+  r: number
+  g: number
+  b: number
+  nx: number
+  ny: number
+  nz: number
+  classification: number
+  intensity: number
+  views?: number
+}
+
+export interface PotreePointsResponse {
+  dataset_id: string
+  point_count: number
+  crs: string
+  has_normals: boolean
+  has_colors: boolean
+  points: PotreePoint[]
+}
+
+export interface CrossSectionPoint {
+  distance: number
+  elevation: number
+  perp_dist: number
+  classification: number
+  r: number
+  g: number
+  b: number
+}
+
+export interface PotreeCrossSectionResponse {
+  dataset_id: string
+  transect_length_m: number
+  corridor_width_m: number
+  point_count: number
+  min_elevation: number
+  max_elevation: number
+  delta_elevation: number
+  points: CrossSectionPoint[]
+}
+

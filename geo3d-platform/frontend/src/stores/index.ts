@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { api, type Project, type Dataset, type ProcessingJob, type ODMTaskResponse, type ODMHealthResponse } from '../api/client'
+import { api, type Project, type Dataset, type ProcessingJob, type ODMTaskResponse, type ODMHealthResponse, type PotreeCrossSectionResponse } from '../api/client'
 
 // ─── App Store ────────────────────────────────────────────────────────────────
 
@@ -200,6 +200,13 @@ interface Layer {
 export type PointCloudColorMode = 'classification' | 'elevation' | 'intensity' | 'rgb'
 export type ActiveAnalysisTool = 'none' | 'distance' | 'area' | 'height' | 'profile' | 'slope' | 'volume'
 
+export type ViewerEngineMode = 'cesium' | 'potree' | 'dual'
+export type PotreeColorMode = 'rgb' | 'elevation' | 'normals' | 'classification' | 'intensity'
+export type PotreePointSizing = 'fixed' | 'attenuated' | 'adaptive'
+export type PotreePointShape = 'square' | 'circle' | 'paraboloid'
+export type PotreeTool = 'none' | 'pick' | 'distance' | 'height' | 'profile' | 'clip'
+
+
 interface ViewerState {
   layers: Layer[]
   selectedObjectInfo: Record<string, unknown> | null
@@ -303,6 +310,44 @@ interface ViewerState {
   toggleSplitCompareMode: () => void
   selectedInputPhoto: { filename: string; url: string; size_bytes?: number } | null
   setSelectedInputPhoto: (photo: { filename: string; url: string; size_bytes?: number } | null) => void
+
+  // Viewer Engine Mode (Cesium 3D Globe vs Potree Point Cloud vs Dual Split)
+  viewerMode: ViewerEngineMode
+  setViewerMode: (mode: ViewerEngineMode) => void
+
+  // Potree & COPC Viewer State
+  potreeColorMode: PotreeColorMode
+  setPotreeColorMode: (mode: PotreeColorMode) => void
+  potreePointBudget: number
+  setPotreePointBudget: (budget: number) => void
+  potreePointSize: number
+  setPotreePointSize: (size: number) => void
+  potreePointSizing: PotreePointSizing
+  setPotreePointSizing: (sizing: PotreePointSizing) => void
+  potreePointShape: PotreePointShape
+  setPotreePointShape: (shape: PotreePointShape) => void
+  potreeEdlEnabled: boolean
+  togglePotreeEdl: () => void
+  potreeEdlRadius: number
+  setPotreeEdlRadius: (radius: number) => void
+  potreeEdlStrength: number
+  setPotreeEdlStrength: (strength: number) => void
+  potreeFov: number
+  setPotreeFov: (fov: number) => void
+
+  // Potree Tools & 2D Profile Window
+  potreeActiveTool: PotreeTool
+  setPotreeActiveTool: (tool: PotreeTool) => void
+  potreeProfileOpen: boolean
+  setPotreeProfileOpen: (open: boolean) => void
+  potreeCrossSectionData: PotreeCrossSectionResponse | null
+  setPotreeCrossSectionData: (data: PotreeCrossSectionResponse | null) => void
+  potreeCorridorWidth: number
+  setPotreeCorridorWidth: (width: number) => void
+  potreeClippingBoxActive: boolean
+  setPotreeClippingBoxActive: (active: boolean) => void
+  potreeCameraPreset: 'orbit' | 'flight' | 'top' | 'front' | 'isometric'
+  setPotreeCameraPreset: (preset: 'orbit' | 'flight' | 'top' | 'front' | 'isometric') => void
 }
 
 
@@ -490,5 +535,43 @@ export const useViewerStore = create<ViewerState>((set) => ({
   toggleSplitCompareMode: () => set((s) => ({ splitCompareMode: !s.splitCompareMode })),
   selectedInputPhoto: null,
   setSelectedInputPhoto: (photo) => set({ selectedInputPhoto: photo }),
+
+  // Viewer Engine Mode
+  viewerMode: 'cesium',
+  setViewerMode: (mode) => set({ viewerMode: mode }),
+
+  // Potree & COPC State
+  potreeColorMode: 'rgb',
+  setPotreeColorMode: (mode) => set({ potreeColorMode: mode }),
+  potreePointBudget: 150000,
+  setPotreePointBudget: (budget) => set({ potreePointBudget: budget }),
+  potreePointSize: 3,
+  setPotreePointSize: (size) => set({ potreePointSize: size }),
+  potreePointSizing: 'adaptive',
+  setPotreePointSizing: (sizing) => set({ potreePointSizing: sizing }),
+  potreePointShape: 'circle',
+  setPotreePointShape: (shape) => set({ potreePointShape: shape }),
+  potreeEdlEnabled: true,
+  togglePotreeEdl: () => set((s) => ({ potreeEdlEnabled: !s.potreeEdlEnabled })),
+  potreeEdlRadius: 1.4,
+  setPotreeEdlRadius: (radius) => set({ potreeEdlRadius: radius }),
+  potreeEdlStrength: 1.0,
+  setPotreeEdlStrength: (strength) => set({ potreeEdlStrength: strength }),
+  potreeFov: 60,
+  setPotreeFov: (fov) => set({ potreeFov: fov }),
+
+  // Potree Tools & 2D Profile Window
+  potreeActiveTool: 'none',
+  setPotreeActiveTool: (tool) => set({ potreeActiveTool: tool }),
+  potreeProfileOpen: false,
+  setPotreeProfileOpen: (open) => set({ potreeProfileOpen: open }),
+  potreeCrossSectionData: null,
+  setPotreeCrossSectionData: (data) => set({ potreeCrossSectionData: data }),
+  potreeCorridorWidth: 2.0,
+  setPotreeCorridorWidth: (width) => set({ potreeCorridorWidth: width }),
+  potreeClippingBoxActive: false,
+  setPotreeClippingBoxActive: (active) => set({ potreeClippingBoxActive: active }),
+  potreeCameraPreset: 'orbit',
+  setPotreeCameraPreset: (preset) => set({ potreeCameraPreset: preset }),
 }))
 

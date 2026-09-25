@@ -73,7 +73,7 @@ export default function ODMPanel() {
       const datasets = useAppStore.getState().datasets
       const aukermanDs = datasets.find((d) => d.id === res.data.dataset_id || d.name.includes('Aukerman'))
       if (aukermanDs) {
-        useAppStore.getState().setActiveDataset(aukermanDs)
+        useAppStore.getState().selectDataset(aukermanDs)
         useViewerStore.getState().setShowDroneCameras(true)
         useViewerStore.getState().setPointCloudColorMode('rgb')
       }
@@ -94,7 +94,7 @@ export default function ODMPanel() {
         return meta?.odm_task_id === taskId || d.name.includes(taskId.substring(0, 6))
       })
       if (ds) {
-        useAppStore.getState().setActiveDataset(ds)
+        useAppStore.getState().selectDataset(ds)
         useViewerStore.getState().setShowDroneCameras(true)
         useViewerStore.getState().setPointCloudColorMode('rgb')
         setSuccess(`Now viewing 3D Point Cloud for ${ds.name}`)
@@ -546,6 +546,7 @@ export default function ODMPanel() {
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                   {task.status === 'COMPLETED' && (
+                    <>
                       <button
                         onClick={() => handleViewPointCloud(task.task_id || task.job_id || '')}
                         style={{

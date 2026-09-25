@@ -678,8 +678,8 @@ export default function CesiumViewer() {
             } else if (pointCloudColorMode === 'intensity') {
               const intVal = Math.min(1.0, (p.intensity || 0) / 50000)
               color = new Cesium.Color(intVal, intVal, intVal, 1.0)
-            } else if (p.r !== undefined && p.g !== undefined && p.b !== undefined && (pointCloudColorMode === 'rgb' || activeDataset?.dataset_type === 'photogrammetry')) {
-              color = new Cesium.Color(p.r / 255, p.g / 255, p.b / 255, 1.0)
+            } else if ((p as any).r !== undefined && (p as any).g !== undefined && (p as any).b !== undefined && (pointCloudColorMode === 'rgb' || activeDataset?.dataset_type === 'photogrammetry')) {
+              color = new Cesium.Color((p as any).r / 255, (p as any).g / 255, (p as any).b / 255, 1.0)
             } else {
               color = CLASSIFICATION_CESIUM_COLORS[p.classification] || Cesium.Color.fromCssColorString('#8b5a2b')
             }

@@ -3,7 +3,14 @@ import { useAppStore, useViewerStore } from '../../stores'
 
 export default function TopBar() {
   const { backendStatus, backendVersion, checkBackend } = useAppStore()
-  const { aiDrawerOpen, setAiDrawerOpen, splitCompareMode, setSplitCompareMode } = useViewerStore()
+  const {
+    viewerMode,
+    setViewerMode,
+    aiDrawerOpen,
+    setAiDrawerOpen,
+    splitCompareMode,
+    setSplitCompareMode,
+  } = useViewerStore()
   const activeDataset = useAppStore((s) => s.activeDataset)
 
   const [time, setTime] = useState(new Date())
@@ -36,6 +43,92 @@ export default function TopBar() {
       <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
         v{backendVersion || '…'}
       </span>
+
+      {/* 3D Engine Mode Selector: Cesium Globe vs Potree Point Cloud vs Dual View */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          background: 'rgba(15, 23, 42, 0.7)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          borderRadius: 8,
+          padding: 2,
+          gap: 2,
+          marginLeft: 16,
+        }}
+      >
+        <button
+          id="btn-viewer-mode-cesium"
+          onClick={() => setViewerMode('cesium')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '4px 10px',
+            borderRadius: 6,
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: 'pointer',
+            border: 'none',
+            background: viewerMode === 'cesium' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+            color: viewerMode === 'cesium' ? '#38bdf8' : '#94a3b8',
+            boxShadow: viewerMode === 'cesium' ? '0 0 10px rgba(56, 189, 248, 0.3)' : 'none',
+            transition: 'all 0.15s ease',
+          }}
+          title="CesiumJS Global 3D Globe with Multi-Layer Geospatial Context"
+        >
+          <span>🌐</span>
+          <span>Cesium Globe</span>
+        </button>
+
+        <button
+          id="btn-viewer-mode-potree"
+          onClick={() => setViewerMode('potree')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '4px 10px',
+            borderRadius: 6,
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: 'pointer',
+            border: 'none',
+            background: viewerMode === 'potree' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+            color: viewerMode === 'potree' ? '#38bdf8' : '#94a3b8',
+            boxShadow: viewerMode === 'potree' ? '0 0 10px rgba(56, 189, 248, 0.3)' : 'none',
+            transition: 'all 0.15s ease',
+          }}
+          title="Potree 1.8+ Ultra-Dense Point Cloud Inspector with Eye-Dome Lighting (EDL)"
+        >
+          <span>⚡</span>
+          <span>Potree COPC</span>
+        </button>
+
+        <button
+          id="btn-viewer-mode-dual"
+          onClick={() => setViewerMode('dual')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '4px 10px',
+            borderRadius: 6,
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: 'pointer',
+            border: 'none',
+            background: viewerMode === 'dual' ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.3), rgba(168, 85, 247, 0.35))' : 'transparent',
+            color: viewerMode === 'dual' ? '#c084fc' : '#94a3b8',
+            boxShadow: viewerMode === 'dual' ? '0 0 10px rgba(168, 85, 247, 0.35)' : 'none',
+            transition: 'all 0.15s ease',
+          }}
+          title="Dual Split View: Cesium 3D Globe (Left) + Potree Point Cloud (Right)"
+        >
+          <span>🔀</span>
+          <span>Dual View</span>
+        </button>
+      </div>
 
       <div className="topbar__spacer" />
 

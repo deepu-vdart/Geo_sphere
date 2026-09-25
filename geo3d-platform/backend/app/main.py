@@ -13,7 +13,7 @@ import os
 
 from app.config import get_settings
 from app.database import init_db
-from app.api.routes import health, projects, datasets, jobs, analysis, aoi, terrain, ai, providers, classification, temporal, gl3d, odm
+from app.api.routes import health, projects, datasets, jobs, analysis, aoi, terrain, ai, providers, classification, temporal, gl3d, odm, potree
 
 # ─── Logging ────────────────────────────────────────────────────────────────
 
@@ -91,6 +91,7 @@ app.include_router(classification.router, prefix=settings.API_PREFIX)
 app.include_router(temporal.router, prefix=settings.API_PREFIX)
 app.include_router(gl3d.router, prefix=settings.API_PREFIX)
 app.include_router(odm.router, prefix=settings.API_PREFIX)
+app.include_router(potree.router, prefix=settings.API_PREFIX)
 
 
 # ─── Root ────────────────────────────────────────────────────────────────────
