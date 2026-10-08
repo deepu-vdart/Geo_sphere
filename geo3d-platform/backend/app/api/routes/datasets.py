@@ -460,7 +460,6 @@ async def get_points_sample(
             select(Asset).where(
                 Asset.dataset_id == dataset_id,
                 Asset.asset_type.in_(["point_cloud", "dense_point_cloud"]),
-                Asset.status == "active",
             )
         )
         pc_asset = asset_res.scalar_one_or_none()
@@ -688,6 +687,7 @@ async def get_dataset_input_images(
 
 
 @router.get("/datasets/{dataset_id}/input-images/{filename}")
+@router.head("/datasets/{dataset_id}/input-images/{filename}")
 async def get_dataset_input_image_file(
     dataset_id: uuid.UUID,
     filename: str,
@@ -702,28 +702,47 @@ async def get_dataset_input_image_file(
     meta = dataset.metadata_json if (dataset and isinstance(dataset.metadata_json, dict)) else {}
     odm_task_id = meta.get("odm_task_id")
 
-    # Search candidates
-    candidates = []
+    # Search candidate directories
+    search_dirs = []
     if odm_task_id:
-        candidates.append(os.path.join(settings.ODM_UPLOADS_DIR, odm_task_id, filename))
+        search_dirs.append(os.path.join(settings.ODM_UPLOADS_DIR, odm_task_id))
 
-    # Scan all upload dirs in ODM_UPLOADS_DIR
+    if dataset and dataset.project_id:
+        search_dirs.append(os.path.join(settings.RAW_DIR, str(dataset.project_id), str(dataset_id)))
+
     if os.path.isdir(settings.ODM_UPLOADS_DIR):
         for sub in os.listdir(settings.ODM_UPLOADS_DIR):
-            candidates.append(os.path.join(settings.ODM_UPLOADS_DIR, sub, filename))
+            sub_p = os.path.join(settings.ODM_UPLOADS_DIR, sub)
+            if os.path.isdir(sub_p):
+                search_dirs.append(sub_p)
 
-    for cpath in candidates:
-        if os.path.isfile(cpath):
-            media_type = "image/jpeg"
-            if filename.lower().endswith(".png"):
-                media_type = "image/png"
-            elif filename.lower().endswith((".tif", ".tiff")):
-                media_type = "image/tiff"
-            return FileResponse(
-                cpath,
-                media_type=media_type,
-                headers={"Cache-Control": "public, max-age=86400", "Access-Control-Allow-Origin": "*"}
-            )
+    resolved_path = None
+    for sdir in search_dirs:
+        if not os.path.isdir(sdir):
+            continue
+        exact = os.path.join(sdir, filename)
+        if os.path.isfile(exact):
+            resolved_path = exact
+            break
+        # Case-insensitive search fallback
+        for entry in os.listdir(sdir):
+            if entry.lower() == filename.lower() and os.path.isfile(os.path.join(sdir, entry)):
+                resolved_path = os.path.join(sdir, entry)
+                break
+        if resolved_path:
+            break
+
+    if resolved_path and os.path.isfile(resolved_path):
+        media_type = "image/jpeg"
+        if filename.lower().endswith(".png"):
+            media_type = "image/png"
+        elif filename.lower().endswith((".tif", ".tiff")):
+            media_type = "image/tiff"
+        return FileResponse(
+            resolved_path,
+            media_type=media_type,
+            headers={"Cache-Control": "public, max-age=86400", "Access-Control-Allow-Origin": "*"}
+        )
 
     raise HTTPException(status_code=404, detail=f"Image '{filename}' not found for dataset {dataset_id}.")
 

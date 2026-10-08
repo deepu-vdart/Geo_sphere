@@ -321,6 +321,17 @@ export default function CesiumViewer() {
 
       viewerRef.current = viewer
       setLoading(false)
+
+      // Auto-resize canvas when container changes width (e.g. Multi-Split view toggle)
+      if (containerRef.current) {
+        const ro = new ResizeObserver(() => {
+          if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+            viewerRef.current.resize()
+          }
+        })
+        ro.observe(containerRef.current)
+        ;(viewer as any)._resizeObserver = ro
+      }
     } catch (err) {
       console.error('CesiumJS initialization error:', err)
       setError(String(err))
@@ -328,6 +339,9 @@ export default function CesiumViewer() {
     }
 
     return () => {
+      if (viewerRef.current && (viewerRef.current as any)._resizeObserver) {
+        (viewerRef.current as any)._resizeObserver.disconnect()
+      }
       if (viewerRef.current && !viewerRef.current.isDestroyed()) {
         viewerRef.current.destroy()
         viewerRef.current = null
@@ -628,46 +642,58 @@ export default function CesiumViewer() {
       setTileStreamingProgress(100)
     }
 
-    // ── ODM Photogrammetry Mesh Loading ────────────────────────────────────
+    // ── Photogrammetry 3D Reconstructed Surface Mesh Loading ───────────────────
     if (activeDataset.dataset_type === 'photogrammetry') {
       const meta = (activeDataset.metadata_json as any) || {}
       const odmTaskId = meta.odm_task_id
       const hasMesh = meta.available_assets?.includes('textured_mesh')
+      const anchor = meta.anchor || { lon: -81.7518, lat: 41.3041, alt: 285.0 }
 
-      if (odmTaskId && hasMesh) {
-        const anchor = meta.anchor || { lon: 8.5417, lat: 47.3769, alt: 450.0 }
-        const modelUrl = `/api/odm/tasks/${odmTaskId}/assets/textured_mesh`
-        const position = Cesium.Cartesian3.fromDegrees(anchor.lon, anchor.lat, anchor.alt)
-        const hpr = new Cesium.HeadingPitchRoll(0, 0, 0)
+      const modelUrl =
+        odmTaskId && hasMesh
+          ? `/api/odm/tasks/${odmTaskId}/assets/textured_mesh`
+          : `/api/datasets/${datasetId}/model.glb`
 
-        const modelEntity = viewer.entities.add({
-          name: `${activeDataset.name} (3D Textured Mesh)`,
-          position: position,
-          orientation: Cesium.Transforms.headingPitchRollQuaternion(position, hpr),
-          model: {
-            uri: modelUrl,
-            minimumPixelSize: 64,
-            maximumScale: 200000,
-            scale: 1.0,
-            shadows: Cesium.ShadowMode.ENABLED,
-          },
+      fetch(modelUrl, { method: 'HEAD' })
+        .then((resp) => {
+          if (!resp.ok || !isSubscribed) return
+          const position = Cesium.Cartesian3.fromDegrees(anchor.lon, anchor.lat, anchor.alt)
+          const hpr = new Cesium.HeadingPitchRoll(0, 0, 0)
+
+          const modelEntity = viewer.entities.add({
+            name: `${activeDataset.name} (3D Reconstructed Mesh)`,
+            position: position,
+            orientation: Cesium.Transforms.headingPitchRollQuaternion(position, hpr),
+            model: {
+              uri: modelUrl,
+              minimumPixelSize: 64,
+              maximumScale: 200000,
+              scale: 1.0,
+              shadows: Cesium.ShadowMode.ENABLED,
+              silhouetteColor: Cesium.Color.fromCssColorString('#38bdf8'),
+              silhouetteSize: 0.5,
+            },
+          })
+          odmModelEntityRef.current = modelEntity
+
+          viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(
+              anchor.lon + 0.0004,
+              anchor.lat - 0.0005,
+              anchor.alt + 120.0
+            ),
+            orientation: {
+              heading: Cesium.Math.toRadians(320),
+              pitch: Cesium.Math.toRadians(-35),
+              roll: 0,
+            },
+            duration: 2.0,
+          })
+          setTileStreamingProgress(100)
         })
-        odmModelEntityRef.current = modelEntity
-
-        viewer.camera.flyTo({
-          destination: Cesium.Cartesian3.fromDegrees(
-            anchor.lon + 0.0004,
-            anchor.lat - 0.0005,
-            anchor.alt + 120.0
-          ),
-          orientation: {
-            heading: Cesium.Math.toRadians(320),
-            pitch: Cesium.Math.toRadians(-35),
-            roll: 0,
-          },
-          duration: 2.0,
+        .catch(() => {
+          /* Fallback gracefully to point cloud */
         })
-      }
     }
 
     // ── Strategy 1: Try native Cesium3DTileset (LOD streaming) ──────────────
@@ -1075,7 +1101,7 @@ export default function CesiumViewer() {
   }, [layers, showMapBackground])
 
   return (
-    <div className="viewer-container">
+    <div className="viewer-container" style={{ width: '100%', height: '100%', position: 'relative' }}>
       {loading && (
         <div className="scene-loading">
           <div className="scene-loading__spinner" />

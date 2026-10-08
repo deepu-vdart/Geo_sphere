@@ -253,7 +253,7 @@ async def get_potree_metadata(
 @router.get("/{dataset_id}/potree/points")
 async def get_potree_points(
     dataset_id: uuid.UUID,
-    limit: int = Query(50000, ge=100, le=100000),
+    limit: int = Query(50000, ge=10, le=5000000),
     classification: Optional[str] = Query(None, description="Comma-separated class filters (e.g. 2,5,6)"),
     db: AsyncSession = Depends(get_db)
 ):
@@ -268,6 +268,8 @@ async def get_potree_points(
     dataset = result.scalar_one_or_none()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+
+    sample_size = min(limit, 100000)
 
     # Check if there is an active physical file asset
     asset_res = await db.execute(
@@ -284,7 +286,7 @@ async def get_potree_points(
     if asset and asset.file_path and os.path.exists(asset.file_path) and os.path.getsize(asset.file_path) > 100:
         if asset.file_path.endswith(".ply"):
             from app.processing.gl3d_proc.gl3d_parser import read_ply_sample
-            ply_pts = read_ply_sample(asset.file_path, sample_size=limit)
+            ply_pts = read_ply_sample(asset.file_path, sample_size=sample_size)
             if ply_pts:
                 for p in ply_pts:
                     points.append({
@@ -307,7 +309,7 @@ async def get_potree_points(
             try:
                 from app.processing.pdal_proc.las_processor import LASProcessor
                 proc = LASProcessor(asset.file_path, default_crs=dataset.crs or "EPSG:32617")
-                las_pts = proc.get_sample_points(sample_size=limit)
+                las_pts = proc.get_sample_points(sample_size=sample_size)
                 if las_pts:
                     for p in las_pts:
                         points.append({
@@ -331,7 +333,7 @@ async def get_potree_points(
 
     # Fallback to high-density realistic photogrammetric / LiDAR point cloud
     if not points:
-        points = _generate_synthetic_copc_points(dataset, limit=limit)
+        points = _generate_synthetic_copc_points(dataset, limit=sample_size)
 
     # Apply classification filters if requested
     if classification:
