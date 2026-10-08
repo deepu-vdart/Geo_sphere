@@ -82,6 +82,69 @@ export interface ProcessingJob {
   created_at: string
 }
 
+// ─── 3D Object Detection Types (MVP 6) ───────────────────────────────────────
+
+export interface Detected3DObject {
+  id: string
+  index: number
+  category: 'building' | 'vehicle' | 'pole' | 'tree' | string
+  subtype: string
+  color: string
+  confidence: number
+  point_count: number
+  dimensions: {
+    length_m: number
+    width_m: number
+    height_m: number
+    footprint_sq_m: number
+    volume_m3: number
+    heading_deg: number
+  }
+  center: {
+    lon: number
+    lat: number
+    alt: number
+  }
+  bounds: {
+    min_lon: number
+    max_lon: number
+    min_lat: number
+    max_lat: number
+    min_alt: number
+    max_alt: number
+  }
+  label: string
+  cesium_box: {
+    position: [number, number, number]
+    dimensions: [number, number, number]
+    heading: number
+    color: string
+    wireframe_color: string
+  }
+}
+
+export interface ObjectDetectionResponse {
+  dataset_id: string
+  status: string
+  total_objects: number
+  category_counts: Record<string, number>
+  detected_objects: Detected3DObject[]
+  bounding_boxes_count: number
+  message?: string
+}
+
+export interface TileStatsResponse {
+  dataset_id: string
+  spec_version: string
+  compliance: string
+  tile_count: number
+  total_tile_bytes: number
+  total_tile_mb: number
+  max_lod_depth: number
+  root_geometric_error: number
+  bounding_region: number[]
+}
+
 // ─── GL3D Types ──────────────────────────────────────────────────────────────
 
 export interface GL3DScene {
@@ -166,6 +229,7 @@ export const api = {
       points: Array<{ lon: number; lat: number; alt: number; classification: number; intensity: number }>
     }>(`/datasets/${id}/points-sample?sample_size=${sampleSize}`),
   getTilesetUrl: (id: string) => `${BASE_URL}/api/datasets/${id}/tileset.json`,
+  getTileStats: (id: string) => apiClient.get<TileStatsResponse>(`/datasets/${id}/tiles/stats`).then((r) => r.data),
 
   // Spatial Analysis
   measureDistance: (points: Array<{ lon: number; lat: number; alt?: number }>) =>
@@ -205,11 +269,17 @@ export const api = {
   getProviders: () => apiClient.get('/providers'),
   searchProviders: (query: string = '') => apiClient.get(`/providers/search?q=${encodeURIComponent(query)}`),
 
-  // DALES-2 AI Classification
+  // DALES-2 AI Classification & 3D Object Detection (MVP 6)
   triggerClassification: (datasetId: string) =>
     apiClient.post(`/classification/datasets/${datasetId}/classify`),
   getClassifications: (datasetId: string) =>
     apiClient.get(`/classification/datasets/${datasetId}/classifications`),
+  detectObjects: (datasetId: string) =>
+    apiClient.post<ObjectDetectionResponse>(`/classification/datasets/${datasetId}/detect-objects`),
+  getDetectedObjects: (datasetId: string, category: string = 'all') =>
+    apiClient.get<ObjectDetectionResponse>(`/classification/datasets/${datasetId}/objects?category=${category}`),
+  getDetectedObjectDetail: (datasetId: string, objectId: string) =>
+    apiClient.get(`/classification/datasets/${datasetId}/objects/${objectId}`),
 
   // AI Geospatial Assistant (MVP 7)
   chatWithAI: (datasetId: string, query: string) =>

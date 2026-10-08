@@ -4,7 +4,7 @@ import shutil
 import logging
 import numpy as np
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks, status, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
@@ -197,9 +197,10 @@ async def trigger_processing(
 @router.head("/datasets/{dataset_id}/tileset.json")
 async def get_tileset_json(
     dataset_id: uuid.UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Serve OGC 3D Tiles tileset.json specification for point clouds."""
+    """Serve OGC 3D Tiles tileset.json specification for point clouds with HTTP caching."""
     from fastapi.responses import FileResponse
 
     tiles_dir = os.path.join(settings.TILES_DIR, str(dataset_id))
@@ -227,19 +228,34 @@ async def get_tileset_json(
         else:
             raise HTTPException(status_code=404, detail="3D Tileset not found for this dataset.")
 
+    mtime = os.path.getmtime(tileset_path)
+    file_size = os.path.getsize(tileset_path)
+    etag = f'W/"{int(mtime)}-{file_size}"'
 
-    return FileResponse(tileset_path, media_type="application/json")
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "public, max-age=86400"})
+
+    return FileResponse(
+        tileset_path,
+        media_type="application/json",
+        headers={
+            "ETag": etag,
+            "Cache-Control": "public, max-age=86400",
+            "Access-Control-Allow-Origin": "*",
+        }
+    )
 
 
-@router.get("/datasets/{dataset_id}/tile.pnts")
-@router.head("/datasets/{dataset_id}/tile.pnts")
 @router.get("/datasets/{dataset_id}/tiles/{filename}")
 @router.head("/datasets/{dataset_id}/tiles/{filename}")
+@router.get("/datasets/{dataset_id}/tile.pnts")
+@router.head("/datasets/{dataset_id}/tile.pnts")
 async def get_tile_file(
     dataset_id: uuid.UUID,
+    request: Request,
     filename: str = "tile.pnts",
 ):
-    """Serve binary .pnts tile content for 3D Tiles streaming (flat and nested filenames)."""
+    """Serve binary .pnts tile content for 3D Tiles streaming with high-performance caching."""
     from fastapi.responses import FileResponse
 
     tiles_dir = os.path.join(settings.TILES_DIR, str(dataset_id))
@@ -254,8 +270,71 @@ async def get_tile_file(
     if not tile_path:
         raise HTTPException(status_code=404, detail=f"Tile file '{filename}' not found.")
 
-    return FileResponse(tile_path, media_type="application/octet-stream",
-                        headers={"Access-Control-Allow-Origin": "*"})
+    mtime = os.path.getmtime(tile_path)
+    file_size = os.path.getsize(tile_path)
+    etag = f'"{int(mtime)}-{file_size}"'
+
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "public, max-age=604800, immutable"})
+
+    return FileResponse(
+        tile_path,
+        media_type="application/octet-stream",
+        headers={
+            "ETag": etag,
+            "Cache-Control": "public, max-age=604800, immutable",
+            "Access-Control-Allow-Origin": "*",
+        }
+    )
+
+
+@router.get("/datasets/{dataset_id}/tiles/stats")
+async def get_tile_stats(
+    dataset_id: uuid.UUID,
+):
+    """Return OGC 3D Tiles streaming performance and index statistics."""
+    tiles_dir = os.path.join(settings.TILES_DIR, str(dataset_id))
+    tileset_path = os.path.join(tiles_dir, "tileset.json")
+
+    if not os.path.exists(tileset_path):
+        raise HTTPException(status_code=404, detail="3D Tileset not found for this dataset.")
+
+    import json
+    with open(tileset_path, "r") as f:
+        tileset_data = json.load(f)
+
+    # Count tiles on disk
+    pnts_files = []
+    total_bytes = 0
+    tiles_subdir = os.path.join(tiles_dir, "tiles")
+    scan_dirs = [tiles_subdir] if os.path.exists(tiles_subdir) else [tiles_dir]
+    for sdir in scan_dirs:
+        for root, _, files in os.walk(sdir):
+            for file in files:
+                if file.endswith(".pnts"):
+                    p = os.path.join(root, file)
+                    pnts_files.append(file)
+                    total_bytes += os.path.getsize(p)
+
+    def compute_max_depth(node: dict, current_depth: int = 1) -> int:
+        children = node.get("children", [])
+        if not children:
+            return current_depth
+        return max(compute_max_depth(c, current_depth + 1) for c in children)
+
+    max_lod = compute_max_depth(tileset_data.get("root", {}))
+
+    return {
+        "dataset_id": str(dataset_id),
+        "spec_version": tileset_data.get("asset", {}).get("version", "1.1"),
+        "compliance": "OGC 3D Tiles 1.1",
+        "tile_count": len(pnts_files),
+        "total_tile_bytes": total_bytes,
+        "total_tile_mb": round(total_bytes / (1024 * 1024), 2),
+        "max_lod_depth": max_lod,
+        "root_geometric_error": tileset_data.get("root", {}).get("geometricError", 0),
+        "bounding_region": tileset_data.get("root", {}).get("boundingVolume", {}).get("region", []),
+    }
 
 
 @router.get("/datasets/{dataset_id}/model.glb")

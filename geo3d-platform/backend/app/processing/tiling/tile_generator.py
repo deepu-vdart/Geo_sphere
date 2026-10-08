@@ -1,4 +1,4 @@
-﻿"""
+"""
 OGC 3D Tiles 1.1 Hierarchical Point Cloud Tile Generator.
 
 Builds a proper multi-level tileset.json with LOD (Level of Detail) using an
@@ -87,14 +87,16 @@ def _build_pnts(
         "RGB": {"byteOffset": len(pos_bytes)},
     }
     ft_json = json.dumps(ft_dict).encode("utf-8")
-    pad = (8 - len(ft_json) % 8) % 8
+    header_len = 28
+
+    # OGC 3D Tiles: binary body and total length must be 8-byte aligned from start of tile
+    pad = (8 - (header_len + len(ft_json)) % 8) % 8
     ft_json_padded = ft_json + b" " * pad
 
     ft_bin = pos_bytes + rgb_bytes
     bin_pad = (8 - len(ft_bin) % 8) % 8
     ft_bin_padded = ft_bin + b"\x00" * bin_pad
 
-    header_len = 28
     total_len = header_len + len(ft_json_padded) + len(ft_bin_padded)
 
     header = struct.pack(
@@ -150,16 +152,23 @@ class HierarchicalTileGenerator:
         tiles_dir = os.path.join(output_dir, "tiles")
         os.makedirs(tiles_dir, exist_ok=True)
 
-        # ── 1. Load points ─────────────────────────────────────────────────────
-        raw = self.proc.extract_points()
-        total = len(raw["x"])
-        step = max(1, total // max_total_points)
-        x = raw["x"][::step]
-        y = raw["y"][::step]
-        z = raw["z"][::step]
-        classes = raw["classification"][::step]
+        # ── 1. Load points memory-safely ───────────────────────────────────────
+        if hasattr(self.proc, "extract_sampled_points"):
+            raw = self.proc.extract_sampled_points(target_count=max_total_points)
+            x = raw["x"]
+            y = raw["y"]
+            z = raw["z"]
+            classes = raw["classification"]
+        else:
+            raw = self.proc.extract_points()
+            total = len(raw["x"])
+            step = max(1, total // max_total_points)
+            x = raw["x"][::step]
+            y = raw["y"][::step]
+            z = raw["z"][::step]
+            classes = raw["classification"][::step]
         n_pts = len(x)
-        logger.info(f"TileGen: {n_pts:,} points (sampled from {total:,})")
+        logger.info(f"TileGen: {n_pts:,} points prepared for LOD tiling")
 
         # ── 2. CRS → WGS84 → ECEF ──────────────────────────────────────────────
         crs_str = self.proc.header.get("detected_crs", "EPSG:26913")

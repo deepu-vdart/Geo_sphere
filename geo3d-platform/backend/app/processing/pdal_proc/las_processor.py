@@ -265,6 +265,149 @@ class LASProcessor:
 
         return result
 
+    def iter_point_chunks(
+        self,
+        chunk_size: int = 250000,
+        max_points: Optional[int] = None,
+    ):
+        """
+        Stream points in memory-bounded chunks to handle datasets > 1 GB safely.
+        Yields dict of numpy arrays for each chunk.
+        """
+        if not self._parsed:
+            self.parse_header()
+
+        total = self.header["total_points"]
+        target_total = min(total, max_points) if max_points else total
+        offset = self.header["offset_to_points"]
+        rec_len = self.header["point_record_len"]
+        pt_fmt = self.header["point_format"]
+
+        scale_x, scale_y, scale_z = self.header["scale"]
+        off_x, off_y, off_z = self.header["offset"]
+
+        # Setup numpy dtype based on format
+        dt_list = [
+            ("ix", "<i4"),
+            ("iy", "<i4"),
+            ("iz", "<i4"),
+            ("intensity", "<u2"),
+        ]
+        if pt_fmt in (0, 1, 2, 3, 4, 5):
+            dt_list.extend([
+                ("flags", "u1"),
+                ("classification", "u1"),
+                ("scan_angle", "i1"),
+                ("user_data", "u1"),
+                ("point_source_id", "<u2"),
+            ])
+            if pt_fmt in (1, 3, 4, 5):
+                dt_list.append(("gps_time", "<f8"))
+            if pt_fmt in (2, 3, 5):
+                dt_list.extend([
+                    ("red", "<u2"),
+                    ("green", "<u2"),
+                    ("blue", "<u2"),
+                ])
+        elif pt_fmt in (6, 7, 8, 9, 10):
+            dt_list.extend([
+                ("return_flags", "<u2"),
+                ("classification", "u1"),
+                ("user_data", "u1"),
+                ("scan_angle", "<i2"),
+                ("point_source_id", "<u2"),
+                ("gps_time", "<f8"),
+            ])
+            if pt_fmt in (7, 8, 10):
+                dt_list.extend([
+                    ("red", "<u2"),
+                    ("green", "<u2"),
+                    ("blue", "<u2"),
+                ])
+
+        current_len = sum(np.dtype(t).itemsize for _, t in dt_list)
+        if rec_len > current_len:
+            dt_list.append(("padding", f"V{rec_len - current_len}"))
+        dt = np.dtype(dt_list)
+
+        points_read = 0
+        with open(self.file_path, "rb") as f:
+            f.seek(offset)
+            while points_read < target_total:
+                pts_this_chunk = min(chunk_size, target_total - points_read)
+                raw_bytes = f.read(pts_this_chunk * rec_len)
+                if not raw_bytes or len(raw_bytes) < pts_this_chunk * rec_len:
+                    break
+
+                arr = np.frombuffer(raw_bytes, dtype=dt)
+                x = arr["ix"].astype(np.float64) * scale_x + off_x
+                y = arr["iy"].astype(np.float64) * scale_y + off_y
+                z = arr["iz"].astype(np.float64) * scale_z + off_z
+                intensity = arr["intensity"]
+                classification = arr["classification"] & 0x1F
+
+                chunk_dict = {
+                    "x": x,
+                    "y": y,
+                    "z": z,
+                    "intensity": intensity,
+                    "classification": classification,
+                    "has_rgb": "red" in arr.dtype.names,
+                }
+                if chunk_dict["has_rgb"]:
+                    r = arr["red"]
+                    g = arr["green"]
+                    b = arr["blue"]
+                    if r.max() > 255 or g.max() > 255 or b.max() > 255:
+                        chunk_dict["r"] = (r >> 8).astype(np.uint8)
+                        chunk_dict["g"] = (g >> 8).astype(np.uint8)
+                        chunk_dict["b"] = (b >> 8).astype(np.uint8)
+                    else:
+                        chunk_dict["r"] = r.astype(np.uint8)
+                        chunk_dict["g"] = g.astype(np.uint8)
+                        chunk_dict["b"] = b.astype(np.uint8)
+
+                points_read += pts_this_chunk
+                yield chunk_dict
+
+    def extract_sampled_points(self, target_count: int = 250000) -> Dict[str, Any]:
+        """
+        Sample points evenly without loading gigabytes of raw data into memory.
+        Guarantees bounded RAM usage for files > 1 GB.
+        """
+        if not self._parsed:
+            self.parse_header()
+
+        total = self.header["total_points"]
+        if total <= target_count:
+            return self.extract_points()
+
+        step = max(1, total // target_count)
+        collected_x = []
+        collected_y = []
+        collected_z = []
+        collected_cls = []
+        collected_int = []
+
+        for chunk in self.iter_point_chunks(chunk_size=250000):
+            idx = np.arange(0, len(chunk["x"]), step)
+            if len(idx) > 0:
+                collected_x.append(chunk["x"][idx])
+                collected_y.append(chunk["y"][idx])
+                collected_z.append(chunk["z"][idx])
+                collected_cls.append(chunk["classification"][idx])
+                collected_int.append(chunk["intensity"][idx])
+
+        return {
+            "x": np.concatenate(collected_x) if collected_x else np.array([], dtype=np.float64),
+            "y": np.concatenate(collected_y) if collected_y else np.array([], dtype=np.float64),
+            "z": np.concatenate(collected_z) if collected_z else np.array([], dtype=np.float64),
+            "classification": np.concatenate(collected_cls) if collected_cls else np.array([], dtype=np.uint8),
+            "intensity": np.concatenate(collected_int) if collected_int else np.array([], dtype=np.uint16),
+            "has_rgb": False,
+        }
+
+
     def get_metadata_and_stats(self, max_sample_points: int = 100000) -> Dict[str, Any]:
         """Compute full metadata, CRS conversion, WGS84 bounding polygon, and class stats."""
         if not self._parsed:

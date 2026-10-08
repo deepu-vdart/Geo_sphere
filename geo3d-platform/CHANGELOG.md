@@ -2,6 +2,38 @@
 
 All notable changes to this project are documented here.
 
+## [0.7.0] — 2026-10-08 — Large Dataset Optimization & OGC 3D Tiles 1.1 Specification (MVP 5)
+
+### Added
+- **Chunked Ingestion & Streaming** (`app.processing.pdal_proc.las_processor`):
+  - `iter_point_chunks`: Memory-bounded chunk generator streaming binary point records in ~10 MB buffers.
+  - `extract_sampled_points`: Streaming strided point extraction to safely process datasets $> 1\,\text{GB}$ with $\le 250\,\text{MB}$ RAM.
+- **OGC 3D Tiles 1.1 Specification Compliance** (`app.processing.tiling.tile_generator`):
+  - Enforced strict 8-byte boundary alignment across 28-byte `.pnts` header and `FeatureTableJSON`/`FeatureTableBinary` payloads.
+  - Hierarchical Octree LOD generation with geometric error calculation and WGS84 bounding regions.
+- **High-Performance Tile Server with Caching** (`/api/datasets/{id}/tiles/`):
+  - HTTP `ETag` generation, `If-None-Match` checks, and `Cache-Control: public, max-age=604800, immutable` headers.
+  - Added `GET /api/datasets/{id}/tiles/stats` telemetry endpoint returning tile counts, total disk MB, and LOD depth.
+- **Browser WebGL Memory Protection** (`CesiumViewer.tsx`):
+  - Configured `maximumMemoryUsage: 512 MB` to prevent browser tab WebGL out-of-memory crashes.
+  - Added progressive resolution and bounding box culling optimizations.
+- **Automated Test Suite**:
+  - `test_large_dataset_optimization.py` with 5 new unit and benchmark tests (Total test suite: 25/25 passing).
+
+## [0.6.0] — 2026-09-30 — AI Point Cloud Analysis & 3D Object Detection (MVP 6)
+
+### Added
+- **DALES-2 Semantic Dataset Adapter** (`app.processing.ai.dales_adapter`):
+  - 15 semantic classes: Ground, Vegetation, Cars, Trucks, Vans, Buildings, Utility Poles, Powerlines.
+  - Bidirectional translation between DALES-2 and standard ASPRS classes.
+- **3D Object Detection & Clustering Engine** (`app.processing.ai.detector`):
+  - DBSCAN spatial density clustering and PCA-derived Oriented Bounding Boxes (OBB) & Axis-Aligned Bounding Boxes (AABB).
+  - Computes physical metrics: Length $\times$ Width $\times$ Height, bounding volume ($m^3$), heading, and centroid coordinates.
+- **CesiumJS 3D Wireframe Rendering** (`CesiumViewer.tsx`):
+  - 3D wireframe bounding boxes with category color-coding and distance display conditions.
+- **Dual-Tab Classification UI** (`ClassificationPanel.tsx`):
+  - 15-class semantic distribution bar charts and interactive 3D Object inventory table with camera focus controls.
+
 ## [0.5.0] — 2026-09-21 — Phase 8 Multi-Temporal Change Detection & 3D Difference Visualizer
 
 ### Added

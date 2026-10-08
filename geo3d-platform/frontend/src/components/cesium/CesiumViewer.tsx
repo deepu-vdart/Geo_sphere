@@ -61,6 +61,7 @@ export default function CesiumViewer() {
   const odmModelEntityRef = useRef<Cesium.Entity | null>(null)
   const odmOrthophotoLayerRef = useRef<Cesium.ImageryLayer | null>(null)
   const temporalPointsCollectionRef = useRef<Cesium.PointPrimitiveCollection | null>(null)
+  const detectedBoxesEntitiesRef = useRef<Cesium.Entity[]>([])
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -398,6 +399,73 @@ export default function CesiumViewer() {
     }
   }, [aiMarkerPin])
 
+  // ── 3D Object Detection Bounding Boxes Rendering (MVP 6) ───────────────────
+  const detectedObjects = useAppStore((s) => s.detectedObjects)
+  const selectedObjectId = useAppStore((s) => s.selectedObjectId)
+  const showDetectedBoundingBoxes = useViewerStore((s) => s.showDetectedBoundingBoxes)
+  const detectedObjectFilter = useViewerStore((s) => s.detectedObjectFilter)
+
+  useEffect(() => {
+    if (!viewerRef.current) return
+    const viewer = viewerRef.current
+
+    // Clean up previous bounding box entities
+    detectedBoxesEntitiesRef.current.forEach((e) => viewer.entities.remove(e))
+    detectedBoxesEntitiesRef.current = []
+
+    if (!showDetectedBoundingBoxes || !detectedObjects || detectedObjects.length === 0) return
+
+    const filtered = detectedObjects.filter((o) => {
+      if (detectedObjectFilter === 'all') return true
+      return o.category === detectedObjectFilter
+    })
+
+    const newEntities: Cesium.Entity[] = []
+
+    filtered.forEach((obj) => {
+      const isSelected = selectedObjectId === obj.id
+      const baseColor = Cesium.Color.fromCssColorString(obj.color || '#ef4444')
+      const fillColor = isSelected
+        ? baseColor.withAlpha(0.45)
+        : baseColor.withAlpha(0.2)
+      const outlineColor = isSelected ? Cesium.Color.WHITE : baseColor.withAlpha(0.9)
+
+      const dims = obj.dimensions
+      const position = Cesium.Cartesian3.fromDegrees(
+        obj.center.lon,
+        obj.center.lat,
+        obj.center.alt
+      )
+
+      const entity = viewer.entities.add({
+        id: `detected_${obj.id}`,
+        position,
+        box: {
+          dimensions: new Cesium.Cartesian3(dims.length_m, dims.width_m, dims.height_m),
+          material: fillColor,
+          outline: true,
+          outlineColor,
+          outlineWidth: isSelected ? 3 : 1.5,
+        },
+        label: {
+          text: `${obj.label}`,
+          font: isSelected ? 'bold 11px sans-serif' : '10px sans-serif',
+          fillColor: Cesium.Color.WHITE,
+          backgroundColor: Cesium.Color.fromCssColorString('rgba(15, 23, 42, 0.85)'),
+          showBackground: true,
+          backgroundPadding: new Cesium.Cartesian2(6, 3),
+          pixelOffset: new Cesium.Cartesian2(0, -18 - (dims.height_m / 2)),
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 3000),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        }
+      })
+
+      newEntities.push(entity)
+    })
+
+    detectedBoxesEntitiesRef.current = newEntities
+  }, [showDetectedBoundingBoxes, detectedObjects, detectedObjectFilter, selectedObjectId])
+
   const activeClassFilters = useViewerStore((s) => s.activeClassFilters)
   const contoursGeoJson = useViewerStore((s) => s.contoursGeoJson)
   const showContours = useViewerStore((s) => s.showContours)
@@ -613,12 +681,17 @@ export default function CesiumViewer() {
 
         const tileset = await Cesium.Cesium3DTileset.fromUrl(tilesetUrl, {
           maximumScreenSpaceError: pointBudget,
+          cullWithChildrenBounds: true,
           skipLevelOfDetail: false,
           preferLeaves: true,
           dynamicScreenSpaceError: true,
           dynamicScreenSpaceErrorDensity: 0.00278,
           dynamicScreenSpaceErrorFactor: 4.0,
+          progressiveResolutionHeightFraction: 0.5,
         })
+
+        // Memory cap: 512 MB cache to prevent WebGL browser OOM on massive >1GB datasets
+        ;(tileset as any).maximumMemoryUsage = 512
 
         if (!isSubscribed) return
 

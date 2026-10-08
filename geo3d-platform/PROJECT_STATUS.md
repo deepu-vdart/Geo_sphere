@@ -20,10 +20,11 @@
 | **Elevation Profile Chart** | ✅ COMPLETE | Interactive SVG chart with min/max/average elevation, slope, gain/loss, 3D hover pin |
 | **Background Processing & Jobs** | ✅ COMPLETE | Asynchronous job execution with progress tracking (QUEUED → RUNNING → COMPLETED) |
 | **AI Geospatial Analysis Layer** | ✅ COMPLETE | Structured terrain metric aggregator & automated site suitability scoring |
-| **Hierarchical 3D Tiles (LOD)** | ✅ COMPLETE | OGC 3D Tiles 1.1 Octree LOD generation (`tiles/r_*.pnts`), streaming progress HUD |
+| **Hierarchical 3D Tiles (LOD)** | ✅ COMPLETE | OGC 3D Tiles 1.1 Octree LOD generation (`tiles/r_*.pnts`), 8-byte aligned headers, streaming HUD |
+| **Large Dataset Optimization (>1 GB)** | ✅ COMPLETE | Chunked point streaming, memory-bounded sampling, HTTP 304/ETag caching, 512MB WebGL cache cap |
 | **DALES-2 Semantic Classifier** | ✅ COMPLETE | 15-class semantic point classifier with feature heuristics & ASPRS priors |
-| **Documentation Suite** | ✅ COMPLETE | `README.md`, `ARCHITECTURE.md`, `DATA_PIPELINE.md`, `API.md`, `PROJECT_STATUS.md` |
-| **Automated Testing Suite** | ✅ COMPLETE | 20 unit & integration tests passing (`pytest tests/ -v`), TypeScript build 0 errors |
+| **Documentation Suite** | ✅ COMPLETE | `README.md`, `ARCHITECTURE.md`, `DATA_PIPELINE.md`, `API.md`, `PROJECT_STATUS.md`, `ROADMAP.md` |
+| **Automated Testing Suite** | ✅ COMPLETE | 25 unit & integration tests passing (`pytest tests/run_tests.py`), TypeScript build 0 errors |
 | **WebODM API Client** | ✅ COMPLETE | Full async REST client with authentication, task management, result download, and mock mode |
 | **Photogrammetry Pipeline** | ✅ COMPLETE | End-to-end: image upload → ODM processing → result download → Geo3D catalog import |
 | **ODM REST API (8 endpoints)** | ✅ COMPLETE | Health, nodes, task CRUD, results, import, delete under `/api/odm/` |
@@ -36,6 +37,8 @@
 | **Potree 1.8+ WebGL Engine** | ✅ COMPLETE | Eye-Dome Lighting (EDL), point budget slider, surface normals, True RGB, ASPRS classification |
 | **2D Cross-Section Elevation Profiling** | ✅ COMPLETE | Interactive corridor transect slicing with real-time SVG profile chart and ΔZ metrics |
 | **COPC & Potree REST API** | ✅ COMPLETE | 4 endpoints: Potree metadata, high-density stream, cross-section slicing, and COPC downloads |
+| **3D Object Detection & Segmentation** | ✅ COMPLETE | Clustering (DBSCAN/k-d tree), 3D bounding boxes (L×W×H, volume, orientation), and Cesium wireframe rendering for Buildings, Vehicles, Poles, Trees |
+| **Dual-Tab Classification Panel** | ✅ COMPLETE | 15 DALES-2 semantic distribution bars + interactive 3D Object Detection inventory & focus controls |
 
 
 

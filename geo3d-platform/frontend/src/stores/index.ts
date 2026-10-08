@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { api, type Project, type Dataset, type ProcessingJob, type ODMTaskResponse, type ODMHealthResponse, type PotreeCrossSectionResponse } from '../api/client'
+import { api, type Project, type Dataset, type ProcessingJob, type ODMTaskResponse, type ODMHealthResponse, type PotreeCrossSectionResponse, type Detected3DObject } from '../api/client'
 
 // ─── App Store ────────────────────────────────────────────────────────────────
 
@@ -21,9 +21,12 @@ interface AppState {
   // Jobs
   activeJobs: ProcessingJob[]
 
-  // Classification
+  // Classification & 3D Object Detection (MVP 6)
   classificationResult: Record<string, any> | null
   classificationLoading: boolean
+  detectedObjects: Detected3DObject[] | null
+  detectingObjects: boolean
+  selectedObjectId: string | null
 
   // Actions
   checkBackend: () => Promise<void>
@@ -36,6 +39,9 @@ interface AppState {
   createProject: (name: string, description?: string, locationName?: string) => Promise<Project | null>
   triggerClassification: (datasetId: string) => Promise<void>
   loadClassification: (datasetId: string) => Promise<void>
+  detectObjects: (datasetId: string) => Promise<void>
+  loadDetectedObjects: (datasetId: string) => Promise<void>
+  selectDetectedObject: (objectId: string | null) => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -50,6 +56,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeJobs: [],
   classificationResult: null,
   classificationLoading: false,
+  detectedObjects: null,
+  detectingObjects: false,
+  selectedObjectId: null,
 
   checkBackend: async () => {
     try {
@@ -185,6 +194,43 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ classificationResult: null })
     }
   },
+
+  detectObjects: async (datasetId: string) => {
+    set({ detectingObjects: true })
+    try {
+      const res = await api.detectObjects(datasetId)
+      set({ detectedObjects: res.data.detected_objects, detectingObjects: false })
+      useViewerStore.getState().setShowDetectedBoundingBoxes(true)
+    } catch (e) {
+      console.error('Failed to detect 3D objects:', e)
+      set({ detectingObjects: false })
+    }
+  },
+
+  loadDetectedObjects: async (datasetId: string) => {
+    try {
+      const res = await api.getDetectedObjects(datasetId)
+      if (res.data.status === 'ready' && res.data.detected_objects?.length > 0) {
+        set({ detectedObjects: res.data.detected_objects })
+      }
+    } catch {
+      // not detected yet
+    }
+  },
+
+  selectDetectedObject: (objectId: string | null) => {
+    set({ selectedObjectId: objectId })
+    if (objectId) {
+      const obj = get().detectedObjects?.find((o) => o.id === objectId)
+      if (obj && obj.center) {
+        useViewerStore.getState().setFlyToTarget({
+          lon: obj.center.lon,
+          lat: obj.center.lat,
+          alt: obj.center.alt + Math.max(obj.dimensions.height_m * 2.5, 40),
+        })
+      }
+    }
+  },
 }))
 
 // ─── Viewer Store ─────────────────────────────────────────────────────────────
@@ -272,6 +318,13 @@ interface ViewerState {
   clearAiChat: () => void
   aiMarkerPin: { lon: number; lat: number; alt: number; label: string; color?: string } | null
   setAiMarkerPin: (pin: { lon: number; lat: number; alt: number; label: string; color?: string } | null) => void
+
+  // 3D Object Detection Bounding Boxes (MVP 6)
+  showDetectedBoundingBoxes: boolean
+  setShowDetectedBoundingBoxes: (show: boolean) => void
+  toggleDetectedBoundingBoxes: () => void
+  detectedObjectFilter: string
+  setDetectedObjectFilter: (filter: string) => void
 
   // Multi-Temporal Change Detection (MVP 8)
   temporalModalOpen: boolean
@@ -472,6 +525,13 @@ export const useViewerStore = create<ViewerState>((set) => ({
   clearAiChat: () => set({ aiChatMessages: [] }),
   aiMarkerPin: null,
   setAiMarkerPin: (pin) => set({ aiMarkerPin: pin }),
+
+  // 3D Object Detection Bounding Boxes (MVP 6)
+  showDetectedBoundingBoxes: true,
+  setShowDetectedBoundingBoxes: (show) => set({ showDetectedBoundingBoxes: show }),
+  toggleDetectedBoundingBoxes: () => set((s) => ({ showDetectedBoundingBoxes: !s.showDetectedBoundingBoxes })),
+  detectedObjectFilter: 'all',
+  setDetectedObjectFilter: (filter) => set({ detectedObjectFilter: filter }),
 
   // Temporal comparison initial state & actions
   temporalModalOpen: false,

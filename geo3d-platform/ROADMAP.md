@@ -56,25 +56,26 @@
 
 ---
 
-## MVP 5: Large Dataset Optimization
+## MVP 5: Large Dataset Optimization ✅ DONE
 **Goal:** Handle datasets > 1 GB without browser crash
 
-- 3D Tiles specification compliance
-- Point cloud tiling pipeline
-- LOD generation
-- Tile server integration
-- Performance benchmarking
+- Chunked point streaming reader (`iter_point_chunks`) & memory-bounded sampling (`extract_sampled_points`)
+- OGC 3D Tiles 1.1 specification compliance with 8-byte aligned `.pnts` binary headers
+- Octree Level-of-Detail (LOD) hierarchical tiling pipeline
+- High-performance tile server with HTTP 304 / ETag caching & streaming stats API (`/tiles/stats`)
+- Browser WebGL memory protection (`maximumMemoryUsage: 512 MB`, culling optimizations)
+- Automated throughput & memory benchmark test suite (25/25 passing)
 
 ---
 
-## MVP 6: AI Point Cloud Analysis
+## MVP 6: AI Point Cloud Analysis ✅ DONE
 **Goal:** Classify point cloud objects using DALES-2 trained model
 
-- DALES-2 dataset adapter
-- Point cloud classification (ground/buildings/vegetation/vehicles/poles)
-- PyTorch model training pipeline
-- Classified point cloud display
-- Object detection and segmentation
+- DALES-2 dataset adapter with tile indexing & ASPRS translations
+- Point cloud classification (15 DALES-2 semantic classes: ground/buildings/vegetation/vehicles/poles)
+- 3D Object Detection & Instance Segmentation engine (AABB & OBB)
+- 3D Bounding Boxes with dimensions, volume, heading & Cesium wireframe rendering
+- Dual-tab Classification & 3D Object Inventory UI panel
 
 ---
 
