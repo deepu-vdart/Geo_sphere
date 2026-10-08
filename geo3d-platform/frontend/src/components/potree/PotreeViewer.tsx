@@ -96,6 +96,7 @@ export default function PotreeViewer() {
   const rawPointsRef = useRef<PotreePoint[]>([])
   const measureLineRef = useRef<THREE.Line | null>(null)
   const clipBoxHelperRef = useRef<THREE.Box3Helper | null>(null)
+  const gridRef = useRef<THREE.GridHelper | null>(null)
 
   // ─── Initialize Three.js Scene ──────────────────────────────────────────────
   useEffect(() => {
@@ -141,6 +142,7 @@ export default function PotreeViewer() {
     grid.rotation.x = Math.PI / 2
     grid.position.z = -5
     scene.add(grid)
+    gridRef.current = grid
 
     // FPS Counter & Animation Loop
     let animationId: number
@@ -203,7 +205,8 @@ export default function PotreeViewer() {
       }
 
       // 2. Fetch high-density stream points
-      const res = await api.getPotreePoints(activeDataset.id, potreePointBudget)
+      const streamBudget = Math.min(potreePointBudget || 50000, 100000)
+      const res = await api.getPotreePoints(activeDataset.id, streamBudget)
       const pts = res.data.points
       rawPointsRef.current = pts
       setPointCount(pts.length)
@@ -330,13 +333,23 @@ export default function PotreeViewer() {
     scene.add(pointsObj)
     pointsObjRef.current = pointsObj
 
-    // Center camera on point cloud bounding box
+    // Center camera on point cloud bounding box and align grid floor
     if (geometry.boundingBox && controlsRef.current && cameraRef.current) {
       const center = new THREE.Vector3()
       geometry.boundingBox.getCenter(center)
       controlsRef.current.target.copy(center)
-      cameraRef.current.position.set(center.x, center.y - 120, center.z + 90)
+
+      const size = new THREE.Vector3()
+      geometry.boundingBox.getSize(size)
+      const maxDim = Math.max(size.x, size.y, size.z, 60)
+
+      cameraRef.current.position.set(center.x, center.y - maxDim * 1.5, center.z + maxDim * 0.9)
+      cameraRef.current.lookAt(center)
       controlsRef.current.update()
+
+      if (gridRef.current) {
+        gridRef.current.position.set(center.x, center.y, geometry.boundingBox.min.z - 0.5)
+      }
     }
   }
 

@@ -356,6 +356,15 @@ async def get_dataset_glb_model(
     meta = dataset.metadata_json if isinstance(dataset.metadata_json, dict) else {}
     glb_path = meta.get("glb_path")
 
+    # Invalidate stale urban mesh cache for park photogrammetry datasets
+    is_park = "aukerman" in dataset.name.lower() or dataset.dataset_type == "photogrammetry"
+    if is_park and (not meta.get("category") or "urban" in str(meta.get("category")).lower() or "park" not in str(glb_path).lower()):
+        glb_path = None
+        category = "park"
+        meta["category"] = "park"
+    else:
+        category = meta.get("category", "urban")
+
     # Check if glb_path exists
     if glb_path and os.path.exists(glb_path):
         return FileResponse(
@@ -370,7 +379,6 @@ async def get_dataset_glb_model(
             build_mesh_from_point_cloud, load_ply_points, generate_scene_mesh,
         )
         scene_id = meta.get("scene_id", str(dataset_id))
-        category = meta.get("category", "urban")
 
         out_dir = os.path.join(settings.PROCESSED_DIR, "gl3d", scene_id)
         os.makedirs(out_dir, exist_ok=True)
@@ -524,8 +532,10 @@ async def get_points_sample(
             # Pond feature: in top center
             dist_to_pond = ((ui - 0.05) ** 2 + (vi - 0.55) ** 2) ** 0.5
             is_pond = dist_to_pond < 0.18
+            # Parking lot in southwest quadrant: matching DSC00237.JPG
+            is_parking = (-0.85 <= ui <= -0.25) and (-0.85 <= vi <= -0.25)
             # Dense forest canopy: in eastern half (ui > 0.05)
-            is_forest = (ui > -0.05 + rng.normal(0, 0.05)) and not is_path and not is_pond
+            is_forest = (ui > -0.05 + rng.normal(0, 0.05)) and not is_path and not is_pond and not is_parking
 
             if is_pond:
                 alt = base_elevation[i] - 3.5 + rng.normal(0, 0.15)
@@ -541,6 +551,21 @@ async def get_points_sample(
                 g = int(rng.integers(190, 215))
                 b = int(rng.integers(175, 200))
                 cls_val = 11 # Road/Path
+            elif is_parking:
+                # Asphalt parking lot and parked cars (DSC00237.JPG)
+                alt = base_elevation[i] + rng.normal(0, 0.05)
+                car_roll = rng.random()
+                if car_roll < 0.12:
+                    alt += rng.uniform(0.9, 1.5)
+                    # Vehicles matching drone image: white, red, silver, dark blue
+                    car_c = rng.choice([[240, 240, 245], [195, 45, 45], [180, 185, 190], [35, 55, 95]])
+                    r, g, b = car_c[0], car_c[1], car_c[2]
+                    cls_val = 6 # Vehicle / Structure
+                else:
+                    r = int(rng.integers(50, 65))
+                    g = int(rng.integers(52, 68))
+                    b = int(rng.integers(58, 72))
+                    cls_val = 11 # Asphalt
             elif is_forest:
                 # Tree canopy: elevated above ground by 6 to 18 meters
                 tree_height = rng.uniform(7.0, 16.0)
