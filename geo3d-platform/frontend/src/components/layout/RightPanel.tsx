@@ -259,18 +259,24 @@ export default function RightPanel() {
                   <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>
                     Color Mode
                   </div>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {(['classification', 'elevation', 'intensity'] as PointCloudColorMode[]).map(
-                      (mode) => (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+                    {([
+                      { id: 'gray_mesh', label: '🗿 Gray Mesh' },
+                      { id: 'rgb', label: '🎨 RGB' },
+                      { id: 'classification', label: '🏷️ Class' },
+                      { id: 'elevation', label: '📈 Elevation' },
+                      { id: 'intensity', label: '💡 Intensity' },
+                    ] as const).map(
+                      (item) => (
                         <button
-                          key={mode}
-                          onClick={() => setPointCloudColorMode(mode)}
+                          key={item.id}
+                          onClick={() => setPointCloudColorMode(item.id)}
                           className={`btn btn--xs ${
-                            pointCloudColorMode === mode ? 'btn--primary' : 'btn--secondary'
+                            pointCloudColorMode === item.id ? 'btn--primary' : 'btn--secondary'
                           }`}
-                          style={{ flex: 1, textTransform: 'capitalize', fontSize: 10 }}
+                          style={{ fontSize: 9.5, padding: '4px 2px', whiteSpace: 'nowrap' }}
                         >
-                          {mode}
+                          {item.label}
                         </button>
                       )
                     )}

@@ -702,6 +702,19 @@ async def get_dataset_input_images(
                 if images_list:
                     break
 
+    # 3. Check Aukerman benchmark dataset images (77 images)
+    aukerman_dir = os.path.join(settings.RAW_DIR, "odm_data_aukerman", "images")
+    if (not images_list or "aukerman" in dataset.name.lower()) and os.path.isdir(aukerman_dir):
+        images_list = []
+        for fname in sorted(os.listdir(aukerman_dir)):
+            if fname.lower().endswith((".jpg", ".jpeg", ".png", ".tif")):
+                fpath = os.path.join(aukerman_dir, fname)
+                images_list.append({
+                    "filename": fname,
+                    "url": f"/api/datasets/{dataset_id}/input-images/{fname}",
+                    "size_bytes": os.path.getsize(fpath),
+                })
+
     return {
         "dataset_id": str(dataset_id),
         "dataset_name": dataset.name,
@@ -729,6 +742,10 @@ async def get_dataset_input_image_file(
 
     # Search candidate directories
     search_dirs = []
+    aukerman_dir = os.path.join(settings.RAW_DIR, "odm_data_aukerman", "images")
+    if os.path.isdir(aukerman_dir):
+        search_dirs.append(aukerman_dir)
+
     if odm_task_id:
         search_dirs.append(os.path.join(settings.ODM_UPLOADS_DIR, odm_task_id))
 
