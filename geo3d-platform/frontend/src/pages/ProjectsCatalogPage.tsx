@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../stores'
-import { type Dataset, type Project } from '../api/client'
+import { api, type Dataset, type Project } from '../api/client'
 
 export default function ProjectsCatalogPage() {
   const navigate = useNavigate()
@@ -13,6 +13,7 @@ export default function ProjectsCatalogPage() {
     activeDataset,
     selectDataset,
     createProject,
+    loadDatasets,
     triggerProcessing,
   } = useAppStore()
 
@@ -21,6 +22,17 @@ export default function ProjectsCatalogPage() {
   const [showNewProjectModal, setShowNewProjectModal] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectDesc, setNewProjectDesc] = useState('')
+
+  // Upload modal states
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploadMode, setUploadMode] = useState<'drone' | 'single'>('drone')
+  const [uploadFiles, setUploadFiles] = useState<File[]>([])
+  const [uploadName, setUploadName] = useState('')
+  const [uploadDesc, setUploadDesc] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
+  const [loadingPreset, setLoadingPreset] = useState(false)
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,6 +43,65 @@ export default function ProjectsCatalogPage() {
       setShowNewProjectModal(false)
       setNewProjectName('')
       setNewProjectDesc('')
+    }
+  }
+
+  const handleUploadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!activeProject) {
+      setUploadError('Please select or create a project first.')
+      return
+    }
+    if (uploadFiles.length === 0) {
+      setUploadError('Please choose at least one file or image.')
+      return
+    }
+    setUploading(true)
+    setUploadError(null)
+    setUploadSuccess(null)
+    try {
+      if (uploadMode === 'drone') {
+        if (uploadFiles.length < 2) {
+          setUploadError('Multi-image photogrammetry requires at least 2 images.')
+          setUploading(false)
+          return
+        }
+        const taskName = uploadName.trim() || 'Drone Survey'
+        await api.odmCreateTask(activeProject.id, uploadFiles, taskName)
+        setUploadSuccess(`Photogrammetry task "${taskName}" queued with ${uploadFiles.length} images!`)
+      } else {
+        const file = uploadFiles[0]
+        const name = uploadName.trim() || file.name
+        await api.uploadDataset(activeProject.id, file, name, uploadDesc)
+        setUploadSuccess(`Dataset "${name}" uploaded successfully!`)
+      }
+      await loadDatasets(activeProject.id)
+      setUploadFiles([])
+      setUploadName('')
+      setUploadDesc('')
+      setTimeout(() => {
+        setShowUploadModal(false)
+        setUploadSuccess(null)
+      }, 1500)
+    } catch (err: any) {
+      setUploadError(err.response?.data?.detail || err.message || 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleQuickLoadAukerman = async () => {
+    if (!activeProject) return
+    setLoadingPreset(true)
+    setUploadError(null)
+    try {
+      await api.odmLoadAukermanPreset(activeProject.id)
+      await loadDatasets(activeProject.id)
+      setUploadSuccess('Loaded DroneDB Aukerman Benchmark (77 drone photos & 3D model)!')
+    } catch (err: any) {
+      setUploadError(err.response?.data?.detail || 'Failed to load benchmark preset')
+    } finally {
+      setLoadingPreset(false)
     }
   }
 
@@ -138,6 +209,26 @@ export default function ProjectsCatalogPage() {
             </div>
             <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase' }}>Points</div>
           </div>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            style={{
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              padding: '8px 16px',
+              fontWeight: 600,
+              fontSize: 12,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 0 12px rgba(16, 185, 129, 0.3)',
+            }}
+          >
+            <span>📸</span>
+            <span>Upload Images / Dataset</span>
+          </button>
           <button
             onClick={() => setShowNewProjectModal(true)}
             style={{
@@ -262,17 +353,65 @@ export default function ProjectsCatalogPage() {
       {filteredDatasets.length === 0 ? (
         <div
           style={{
-            background: 'rgba(15, 23, 42, 0.4)',
-            border: '1px dashed rgba(255, 255, 255, 0.1)',
+            background: 'rgba(15, 23, 42, 0.45)',
+            border: '1px dashed rgba(56, 189, 248, 0.25)',
             borderRadius: 12,
-            padding: 48,
+            padding: '48px 32px',
             textAlign: 'center',
             color: '#64748b',
           }}
         >
-          <div style={{ fontSize: 32, marginBottom: 8 }}>📭</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#94a3b8' }}>No datasets found</div>
-          <p style={{ fontSize: 12, margin: '4px 0 0' }}>Select another project or adjust your filter query.</p>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📸</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>
+            No datasets in "{activeProject?.name || 'this project'}"
+          </div>
+          <p style={{ fontSize: 13, margin: '8px auto 24px', maxWidth: 460, color: '#94a3b8', lineHeight: 1.5 }}>
+            Upload your drone survey imagery (.jpg, .png), point cloud (.las, .laz), or DEM raster to generate 3D models and terrain metrics.
+          </p>
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setShowUploadModal(true)}
+              style={{
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                padding: '10px 20px',
+                fontWeight: 600,
+                fontSize: 13,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                boxShadow: '0 0 16px rgba(16, 185, 129, 0.35)',
+              }}
+            >
+              <span>📸</span>
+              <span>Upload Images / Dataset</span>
+            </button>
+
+            <button
+              onClick={handleQuickLoadAukerman}
+              disabled={loadingPreset}
+              style={{
+                background: 'rgba(56, 189, 248, 0.12)',
+                color: '#38bdf8',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                borderRadius: 8,
+                padding: '10px 18px',
+                fontWeight: 600,
+                fontSize: 13,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <span>⚡</span>
+              <span>{loadingPreset ? 'Loading Preset…' : 'Load Aukerman Drone Benchmark (77 Photos)'}</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div
@@ -613,6 +752,254 @@ export default function ProjectsCatalogPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ── Upload Images / Dataset Modal ────────────────────────────────────── */}
+      {showUploadModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 16,
+            backdropFilter: 'blur(4px)',
+          }}
+          onClick={() => !uploading && setShowUploadModal(false)}
+        >
+          <div
+            style={{
+              background: '#0f172a',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              borderRadius: 12,
+              padding: 24,
+              width: '100%',
+              maxWidth: 520,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>📸</span>
+                <span>Upload New Images / Dataset</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => !uploading && setShowUploadModal(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: 18,
+                  cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div
+              style={{
+                fontSize: 11,
+                color: '#38bdf8',
+                background: 'rgba(56, 189, 248, 0.1)',
+                padding: '6px 12px',
+                borderRadius: 6,
+                marginBottom: 16,
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+              }}
+            >
+              Target Project: <strong style={{ color: '#fff' }}>{activeProject?.name || 'No Project Selected'}</strong>
+            </div>
+
+            {/* Mode Selector */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <button
+                type="button"
+                onClick={() => { setUploadMode('drone'); setUploadFiles([]) }}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: uploadMode === 'drone' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                  border: uploadMode === 'drone' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+                  color: uploadMode === 'drone' ? '#38bdf8' : '#94a3b8',
+                  transition: 'all 0.15s',
+                }}
+              >
+                🛩️ Multi-View Drone Photos (SfM)
+              </button>
+              <button
+                type="button"
+                onClick={() => { setUploadMode('single'); setUploadFiles([]) }}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: uploadMode === 'single' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                  border: uploadMode === 'single' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+                  color: uploadMode === 'single' ? '#38bdf8' : '#94a3b8',
+                  transition: 'all 0.15s',
+                }}
+              >
+                📁 Single File (.las / .tif / .png / .jpg)
+              </button>
+            </div>
+
+            <form onSubmit={handleUploadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* File Input Dropzone */}
+              <div>
+                <label style={{ fontSize: 11, color: '#94a3b8', display: 'block', marginBottom: 6 }}>
+                  {uploadMode === 'drone' ? 'Select Multiple Drone Photos (min. 2 images)' : 'Select Dataset / Orthophoto File'}
+                </label>
+                <div
+                  style={{
+                    border: '2px dashed rgba(56, 189, 248, 0.3)',
+                    borderRadius: 8,
+                    padding: '20px 16px',
+                    textAlign: 'center',
+                    background: 'rgba(15, 23, 42, 0.5)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="file"
+                    multiple={uploadMode === 'drone'}
+                    accept={uploadMode === 'drone' ? 'image/jpeg,image/png,image/tiff,.jpg,.jpeg,.png,.tif,.tiff' : '.las,.laz,.tif,.tiff,.jpg,.jpeg,.png,.zip,.ply'}
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || [])
+                      setUploadFiles(files)
+                      if (files.length > 0 && !uploadName) {
+                        setUploadName(uploadMode === 'drone' ? 'Drone Survey' : files[0].name.replace(/\.[^/.]+$/, ''))
+                      }
+                    }}
+                    style={{ display: 'block', width: '100%', fontSize: 12, color: '#cbd5e1' }}
+                  />
+                  <div style={{ marginTop: 8, fontSize: 10, color: '#64748b' }}>
+                    {uploadMode === 'drone'
+                      ? 'Supported formats: .JPG, .JPEG, .PNG, .TIF (Multi-view aerial survey)'
+                      : 'Supported formats: .LAS, .LAZ, .TIF, .PNG, .JPG, .ZIP, .PLY'}
+                  </div>
+                </div>
+
+                {uploadFiles.length > 0 && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: '#38bdf8', fontWeight: 600 }}>
+                    ✓ {uploadFiles.length} file{uploadFiles.length > 1 ? 's' : ''} selected ({((uploadFiles.reduce((acc, f) => acc + f.size, 0)) / 1024 / 1024).toFixed(2)} MB)
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, color: '#94a3b8', display: 'block', marginBottom: 4 }}>
+                  Dataset / Task Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={uploadName}
+                  onChange={(e) => setUploadName(e.target.value)}
+                  placeholder={uploadMode === 'drone' ? 'e.g. Flight 1 - Quarry Overlook' : 'e.g. San Diego LiDAR Tile'}
+                  style={{
+                    width: '100%',
+                    background: '#1e293b',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 6,
+                    color: '#fff',
+                    padding: '8px 12px',
+                    fontSize: 12,
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              {uploadMode === 'single' && (
+                <div>
+                  <label style={{ fontSize: 11, color: '#94a3b8', display: 'block', marginBottom: 4 }}>
+                    Description (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={uploadDesc}
+                    onChange={(e) => setUploadDesc(e.target.value)}
+                    placeholder="High-resolution aerial capture..."
+                    style={{
+                      width: '100%',
+                      background: '#1e293b',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 6,
+                      color: '#fff',
+                      padding: '8px 12px',
+                      fontSize: 12,
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+              )}
+
+              {uploadError && (
+                <div style={{ padding: '8px 12px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: 6, color: '#f87171', fontSize: 11 }}>
+                  ⚠️ {uploadError}
+                </div>
+              )}
+
+              {uploadSuccess && (
+                <div style={{ padding: '8px 12px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: 6, color: '#34d399', fontSize: 11 }}>
+                  ✅ {uploadSuccess}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+                <button
+                  type="button"
+                  disabled={uploading}
+                  onClick={() => setShowUploadModal(false)}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    color: '#94a3b8',
+                    padding: '6px 14px',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploading || uploadFiles.length === 0}
+                  style={{
+                    background: uploading ? '#64748b' : '#0284c7',
+                    border: 'none',
+                    color: '#fff',
+                    padding: '6px 18px',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: uploading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  {uploading ? 'Uploading & Processing…' : 'Start Upload'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

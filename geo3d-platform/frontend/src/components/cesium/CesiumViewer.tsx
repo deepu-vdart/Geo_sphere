@@ -774,6 +774,11 @@ export default function CesiumViewer() {
             let color: Cesium.Color
             if (pointCloudColorMode === 'elevation') {
               color = getElevationColor(p.alt, effectiveMinZ, effectiveMaxZ)
+            } else if (pointCloudColorMode === 'gray_mesh' || pointCloudColorMode === 'clay') {
+              // Shaded Gray / Clay Render (matching 3D photogrammetric surface mesh in GL3D benchmark)
+              const normAlt = Math.max(0, Math.min(1, (p.alt - effectiveMinZ) / Math.max(1, (effectiveMaxZ - effectiveMinZ))))
+              const pseudoShade = 0.55 + 0.35 * Math.sin(normAlt * Math.PI * 0.85 + (((p.lon + p.lat) * 10000) % 1) * 0.25)
+              color = new Cesium.Color(pseudoShade, pseudoShade, pseudoShade * 1.02, 1.0)
             } else if (pointCloudColorMode === 'intensity') {
               const intVal = Math.min(1.0, (p.intensity || 0) / 50000)
               color = new Cesium.Color(intVal, intVal, intVal, 1.0)
@@ -783,10 +788,11 @@ export default function CesiumViewer() {
               color = CLASSIFICATION_CESIUM_COLORS[p.classification] || Cesium.Color.fromCssColorString('#8b5a2b')
             }
 
+            const defaultPointSize = (pointCloudColorMode === 'gray_mesh' || pointCloudColorMode === 'clay') ? 6 : (activeDataset?.dataset_type === 'photogrammetry' ? 5 : 4)
             collection.add({
               position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt),
               color: color,
-              pixelSize: pointSize || (activeDataset?.dataset_type === 'photogrammetry' ? 5 : 4),
+              pixelSize: pointSize || defaultPointSize,
             })
           })
 

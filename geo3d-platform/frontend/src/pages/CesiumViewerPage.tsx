@@ -85,23 +85,29 @@ export default function CesiumViewerPage() {
               backdropFilter: 'blur(8px)',
             }}
           >
-            {(['rgb', 'elevation', 'intensity', 'classification'] as const).map((mode) => (
+            {([
+              { id: 'gray_mesh', label: '🗿 Shaded Gray' },
+              { id: 'rgb', label: '🎨 RGB' },
+              { id: 'classification', label: '🏷️ Classes' },
+              { id: 'elevation', label: '📈 Elevation' },
+              { id: 'intensity', label: '💡 Intensity' },
+            ] as const).map((mode) => (
               <button
-                key={mode}
-                onClick={() => setPointCloudColorMode(mode)}
+                key={mode.id}
+                onClick={() => setPointCloudColorMode(mode.id)}
                 style={{
-                  background: pointCloudColorMode === mode ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
-                  color: pointCloudColorMode === mode ? '#38bdf8' : '#94a3b8',
+                  background: pointCloudColorMode === mode.id ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                  color: pointCloudColorMode === mode.id ? '#38bdf8' : '#94a3b8',
                   border: 'none',
                   borderRadius: 6,
                   padding: '4px 8px',
                   fontSize: 10,
                   fontWeight: 600,
                   cursor: 'pointer',
-                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {mode}
+                {mode.label}
               </button>
             ))}
           </div>

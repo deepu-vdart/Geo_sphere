@@ -243,7 +243,7 @@ interface Layer {
   icon: string
 }
 
-export type PointCloudColorMode = 'classification' | 'elevation' | 'intensity' | 'rgb'
+export type PointCloudColorMode = 'classification' | 'elevation' | 'intensity' | 'rgb' | 'gray_mesh' | 'clay'
 export type ActiveAnalysisTool = 'none' | 'distance' | 'area' | 'height' | 'profile' | 'slope' | 'volume'
 
 export type ViewerEngineMode = 'cesium' | 'potree' | 'dual'
