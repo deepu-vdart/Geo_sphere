@@ -1,6 +1,4 @@
-"""
-Unit and integration tests for MVP 6: DALES-2 Dataset Adapter & 3D Object Detection.
-"""
+"""Unit and integration tests for MVP 6: DALES-2 Dataset Adapter & 3D Object Detection."""
 
 import os
 import sys
